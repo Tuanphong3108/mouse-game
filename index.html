@@ -32,8 +32,22 @@
             width: 40px; 
             height: 40px;
             transform: translate(-50%, -50%);
-            transition: transform 0.05s ease-out; 
+            /* Thêm transition cho hiệu ứng lấp lánh (hit) */
+            filter: drop-shadow(0 0 5px rgba(252, 165, 165, 0.7)); 
+            transition: transform 0.05s ease-out, opacity 0.1s, filter 0.1s; 
             z-index: 10000;
+        }
+        
+        /* NEW: Hiệu ứng khi con trỏ bị trúng đạn */
+        .cursor-hit {
+            filter: brightness(200%) drop-shadow(0 0 10px red); 
+            opacity: 0.5; /* Lấp lánh */
+            animation: hit-flash 0.1s;
+        }
+
+        @keyframes hit-flash {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
         }
 
         /* 3. Style cho con trỏ "FAKE" và MẢNH VỠ khi thua */
@@ -163,6 +177,10 @@
             <!-- Game Status Area -->
             <div class="mt-4 flex justify-between items-center text-lg font-bold">
                 <span id="score-display" class="text-green-400">Time Alive: 0.0s</span>
+                <!-- NEW: Hiển thị HP của Cursor -->
+                <span id="cursor-hp-display" class="text-pink-400 flex items-center">
+                    ❤️ 3
+                </span>
                 <span id="instruction-display" class="text-yellow-400">CLICK & DRAG BOSS!</span>
             </div>
         </div>
@@ -212,9 +230,16 @@
         const finalScore = document.getElementById('final-score');
         const bossHpBar = document.getElementById('boss-hp-bar'); 
         const startScreen = document.getElementById('start-screen'); 
-        
+        const cursorHpDisplay = document.getElementById('cursor-hp-display'); // NEW
+
         const BOSS_MAX_HP = 100;
+        // NEW: Hằng số cho HP của người chơi
+        const CURSOR_MAX_HP = 3; 
+        const INVULNERABILITY_TIME = 1500; // 1.5 giây bất tử sau khi bị trúng đạn
+
         let bossHP = BOSS_MAX_HP;
+        let cursorHP = CURSOR_MAX_HP; // NEW: HP hiện tại của con trỏ
+        let isInvulnerable = false; // NEW: Trạng thái bất tử (I-frames)
         let gameState = 'ready'; 
         let projectiles = [];
         let bossTargetX = 0;
@@ -232,9 +257,8 @@
         const BOSS_SIZE = 80;
         const PROJECTILE_SIZE = 15;
         
-        // [CÂN BẰNG GAME & ĐỘ KHÓ - FIX 3]
+        // [CÂN BẰNG GAME & ĐỘ KHÓ]
         const MIN_IMPACT_VELOCITY = 0.5; 
-        // Giảm damage khi ném Boss từ 0.2 xuống 0.08. Cần khoảng 12-13 lần ném mạnh để hạ gục.
         const DAMAGE_MULTIPLIER = 0.08; 
         
         // Khởi tạo biến cho độ khó
@@ -494,10 +518,15 @@
                 p.element.style.left = `${p.x}px`;
                 p.element.style.top = `${p.y}px`;
 
-                // Kiểm tra va chạm với Chuột (điều kiện thua)
-                if (checkCollision(cRect, p.element.getBoundingClientRect(), 10)) {
-                    triggerGameOver();
-                    return; 
+                // Kiểm tra va chạm với Chuột
+                if (!isInvulnerable && checkCollision(cRect, p.element.getBoundingClientRect(), 10)) {
+                    damageCursor(); // NEW: Gây sát thương cho chuột
+                    p.element.remove(); // NEW: Xóa đạn đã chạm
+                    
+                    // Nếu Chuột đã Game Over, dừng xử lý
+                    if (gameState !== 'playing') return; 
+
+                    continue; // Bỏ qua phần thêm vào newProjectiles vì đạn đã bị xóa
                 }
 
                 // Giữ lại đạn còn trong màn hình
@@ -520,7 +549,7 @@
             );
         }
 
-        // 8. Cập nhật HP
+        // 8. Cập nhật HP Boss
         function damageBoss(amount) {
             if (bossHP <= 0 || gameState !== 'playing') return;
             
@@ -547,6 +576,43 @@
                  bossHpBar.classList.add('bg-red-500');
              }
         }
+        
+        // NEW: 14. Gây sát thương cho Chuột và kích hoạt Bất tử
+        function damageCursor() {
+            if (isInvulnerable || gameState !== 'playing') return;
+
+            cursorHP--;
+            updateCursorHPDisplay();
+            
+            // Kích hoạt Invulnerability (I-frames)
+            isInvulnerable = true;
+            customCursor.classList.add('cursor-hit');
+
+            setTimeout(() => {
+                isInvulnerable = false;
+                customCursor.classList.remove('cursor-hit');
+            }, INVULNERABILITY_TIME);
+            
+            // Check Game Over
+            if (cursorHP <= 0) {
+                triggerGameOver();
+            }
+        }
+
+        // NEW: Cập nhật hiển thị HP của Chuột
+        function updateCursorHPDisplay() {
+             const hearts = '❤️';
+             cursorHpDisplay.innerHTML = `${hearts.repeat(cursorHP)} <span class="text-xl">${cursorHP}</span>`;
+
+             if (cursorHP === 1) {
+                 cursorHpDisplay.classList.remove('text-pink-400');
+                 cursorHpDisplay.classList.add('text-red-500', 'animate-pulse');
+             } else {
+                 cursorHpDisplay.classList.remove('text-red-500', 'animate-pulse');
+                 cursorHpDisplay.classList.add('text-pink-400');
+             }
+        }
+
         
         // [NEW - FIX 3] Cập nhật độ khó (tăng tốc độ đạn và tần suất bắn nhanh hơn)
         function updateDifficulty() {
@@ -723,6 +789,7 @@
         bossTargetY = 0;
         
         updateHPBar();
+        updateCursorHPDisplay(); // NEW: Khởi tạo hiển thị HP chuột
         
         console.log("Game đã ở trạng thái READY. Con trỏ hệ thống đang hiển thị để click nút Play.");
 
