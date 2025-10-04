@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cursor Clash</title>
+    <title>Stat.exe - Cursor Clash</title>
     
     <!-- 1. FAVICON: Thêm con trỏ làm favicon tab -->
     <link rel="icon" href="https://tuanphong3108.github.io/mouse-game/cursor.png" type="image/png">
@@ -14,7 +14,7 @@
         const manifestContent = {
             "name": "Cursor Clash",
             "short_name": "Clash",
-            "description": "Quăng Boss Ra Khỏi Desktop!",
+            "description": "Stat.exe - Quăng Boss Ra Khỏi Desktop!",
             "start_url": "./",
             "display": "standalone",
             "orientation": "landscape", /* Đề xuất dùng màn hình ngang cho game */
@@ -826,6 +826,8 @@
                 boss.style.left = `${targetX}px`;
                 boss.style.top = `${targetY}px`;
                 
+                lastCursorX = e.clientX;
+                lastCursorY = e.clientY;
                 lastTimeDrag = currentTime;
             }
             
@@ -909,7 +911,7 @@
             setTimeout(() => {
                 bossVX *= 0.5;
                 bossVY *= 0.5;
-            }, BOSS_AI_MOVE_RATE_MS * 0.8);
+            }, BOSS_AI_MOVE_RATE_S * 0.8);
         }
 
 
@@ -1018,8 +1020,7 @@
                         damageBoss(COLLISION_DAMAGE); // Áp dụng sát thương
                         bossRunAway(); // Boss chạy trốn
                         setBossDamageCooldown(); // Kích hoạt Cooldown
-                        // Tắt menu ngay lập tức để tránh loop va chạm
-                        xpContextMenu.style.display = 'none'; 
+                        // ĐÃ XÓA LỆNH ĐÓNG MENU: Menu giờ đây là một vật cản kiên cố!
                         return;
                     }
                 }
