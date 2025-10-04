@@ -462,6 +462,26 @@
         const CURSOR_MOVE = 'https://tuanphong3108.github.io/mouse-game/move.png';
         const CURSOR_LINK = 'https://tuanphong3108.github.io/mouse-game/link.png';
 
+        // [AUDIO CONSTANTS]
+        // BGM xịn xò của Animator vs. Animation (Đã nhúng link của Phong)
+        const BGM_URL = 'https://tuanphong3108.github.io/mouse-game/background_music-original_from_animator_vs_animation_ep_12.m4a';
+        let backgroundMusic = null;
+        
+        // SFX PLACEHOLDERS (Sẽ được thêm vào khi Phong có link)
+        const SFX_URLS = {}; 
+        
+        // SFX Play Function (Giữ nguyên cho tương lai)
+        function playSFX(key) {
+            // Logic sẽ được thêm sau khi có link SFX cho bắn đạn, va chạm, v.v.
+            console.log(`SFX trigger: ${key}`);
+        }
+
+        function setupBGM() {
+            if (backgroundMusic) return;
+            backgroundMusic = new Audio(BGM_URL);
+            backgroundMusic.loop = true; // Lặp lại liên tục
+            backgroundMusic.volume = 0.5; // Âm lượng vừa phải
+        }
 
         // === CÂN BẰNG GAME ===
         const BOSS_MAX_HP = 200; 
@@ -590,6 +610,13 @@
         function startGame() {
             if (gameState !== 'waiting') return;
             gameState = 'playing';
+
+            // 1. Setup và Phát BGM (NEW)
+            setupBGM();
+            // Xử lý lỗi nếu trình duyệt chặn tự động phát
+            backgroundMusic.play().catch(e => {
+                console.warn("Lỗi tự động phát nhạc nền. Cần tương tác người dùng.");
+            });
 
             requestFullscreen();
 
@@ -1217,6 +1244,8 @@
             if (gameState !== 'playing') return;
             gameState = 'gameover';
             
+            if (backgroundMusic) backgroundMusic.pause(); // Dừng nhạc nền khi thua (NEW)
+            
             // Dừng AI và đạn
             clearInterval(projectileInterval); 
             clearInterval(bossAIInterval);
@@ -1281,6 +1310,8 @@
         function triggerGameWin() {
             if (gameState !== 'playing') return;
             gameState = 'gamewin';
+
+            if (backgroundMusic) backgroundMusic.pause(); // Dừng nhạc nền khi thắng (NEW)
             
             // QUAN TRỌNG: KÍCH HOẠT LẠI CON TRỎ HỆ THỐNG ĐỂ BẤM NÚT RESET
             documentBody.classList.remove('hide-cursor');
