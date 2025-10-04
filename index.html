@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stat.exe - Cursor Clash</title>
+    <!-- FIX 1: Tên game chính thức phải là Cursor Clash -->
+    <title>Cursor Clash</title> 
     
     <!-- 1. FAVICON: Thêm con trỏ làm favicon tab -->
     <link rel="icon" href="https://tuanphong3108.github.io/mouse-game/cursor.png" type="image/png">
@@ -14,7 +15,7 @@
         const manifestContent = {
             "name": "Cursor Clash",
             "short_name": "Clash",
-            "description": "Stat.exe - Quăng Boss Ra Khỏi Desktop!",
+            "description": "Quăng Boss Ra Khỏi Desktop!",
             "start_url": "./",
             "display": "standalone",
             "orientation": "landscape", /* Đề xuất dùng màn hình ngang cho game */
@@ -216,6 +217,16 @@
             opacity: 0.9;
         }
 
+        /* Styling cho Boss khi đổi tên thành Normal thing */
+        .boss-normal {
+             background-color: rgba(68, 239, 102, 0.5) !important; /* Green */
+             box-shadow: 0 0 15px rgba(68, 239, 102, 0.8) !important;
+             font-size: 40px !important;
+             line-height: 80px !important;
+             border-radius: 4px !important;
+             opacity: 1;
+        }
+
         .projectile, .enraged-projectile {
             position: fixed; 
             pointer-events: none;
@@ -273,6 +284,55 @@
             color: #000;
             font-size: 14px;
         }
+        
+        /* Modal Style (Dùng chung cho Rename Symbol) */
+        .xp-modal {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10005;
+        }
+        .xp-modal-dialog {
+             background-color: #ece9d8; 
+             border: 1px solid #000;
+             box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+             border-radius: 2px;
+             max-width: 300px;
+             width: 90%;
+        }
+        .xp-modal-title {
+            background-color: #4a6ddc;
+            color: white;
+            padding: 3px 6px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .xp-modal-content {
+            padding: 10px;
+        }
+        .xp-modal-footer {
+             padding: 8px;
+             background-color: #f7f7f3;
+             border-top: 1px solid #d4d0c8;
+             display: flex;
+             justify-content: flex-end;
+             gap: 8px;
+        }
+        .xp-modal-footer button {
+            padding: 4px 12px;
+            border: 1px solid #000;
+            background-color: #ece9d8;
+            box-shadow: 1px 1px 0 #fff inset, -1px -1px 0 #555 inset;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .xp-modal-footer button:active {
+             box-shadow: -1px -1px 0 #fff inset, 1px 1px 0 #555 inset;
+        }
+        
 
         /* Start Overlay */
         #start-overlay {
@@ -360,20 +420,21 @@
         >
         
         <!-- Boss Element -->
-        <div id="boss" style="left: 50%; top: 50%; display: none;" draggable="false">
+        <div id="boss" style="left: 50%; top: 50%; display: none;" draggable="false" title="Boss">
             👹
         </div>
         
         <!-- Vùng chứa các mảnh vỡ (Fragments) -->
         <div id="shatter-container" class="absolute inset-0 pointer-events-none"></div>
 
-        <!-- Cửa Sổ Game - "Cửa sổ Stat.exe" -->
+        <!-- Cửa Sổ Game - "Stat.exe" -->
         <div id="phong-exe-window" class="rounded-sm flex flex-col" style="min-width: 320px; display: none;">
             <div class="title-bar" id="window-title-bar">
                 <span class="text-sm">
                     <!-- Icon Placeholder -->
                     <span style="font-size: 14px; margin-right: 4px;">📊</span>
-                    Cửa sổ Stat.exe
+                    <!-- FIX 4: Sửa tên cửa sổ thành Stat.exe -->
+                    Stat.exe 
                 </span>
                 <div class="title-bar-buttons flex items-center" id="title-bar-buttons">
                     <button class="window-control">_</button>
@@ -419,7 +480,7 @@
             </div>
         </div>
         
-        <!-- NEW: XP Context Menu (Menu chuột phải) -->
+        <!-- NEW: XP Context Menu (Menu chuột phải Desktop) -->
         <div id="xp-context-menu" class="xp-menu" style="display: none;">
             <div class="menu-item border-b border-gray-400">Tổ chức Icon</div>
             <div class="menu-item border-b border-gray-400">Sắp xếp theo...</div>
@@ -429,6 +490,30 @@
             <div class="menu-item font-bold" onclick="resetGame()">New Game (F5)</div>
             <div class="menu-item" onclick="window.close()">Thoát XP</div>
         </div>
+
+        <!-- NEW: XP Context Menu (Menu chuột phải Boss) -->
+        <div id="boss-context-menu" class="xp-menu" style="display: none;">
+            <div id="rename-symbol-option" class="menu-item font-bold">Rename Symbol...</div>
+        </div>
+        
+        <!-- Rename Symbol Modal -->
+        <div id="rename-modal-boss" class="xp-modal hidden">
+            <div class="xp-modal-dialog">
+                <div class="xp-modal-title">
+                    Rename Symbol
+                </div>
+                <div class="xp-modal-content">
+                    <label for="new-name-input" class="block text-sm font-semibold text-gray-800 mb-2">Nhập tên mới:</label>
+                    <input type="text" id="new-name-input-boss" class="w-full p-1 border border-gray-500 rounded-sm text-sm" placeholder="Boss or Normal thing">
+                    <p class="text-xs text-gray-600 mt-2">Hỗ trợ 2 tên: "Boss" hoặc "Normal thing".</p>
+                </div>
+                <div class="xp-modal-footer">
+                    <button id="ok-btn-boss">OK</button>
+                    <button id="cancel-btn-boss">Cancel</button>
+                </div>
+            </div>
+        </div>
+
 
         <!-- Game Over / Game Win Message (Chung) -->
         <div id="game-over-message" class="bg-gray-900/95">
@@ -440,11 +525,13 @@
             <h1 class="text-5xl font-extrabold mb-4 text-shadow-lg">
                 <span class="text-red-400">CURSOR</span> <span class="text-white">CLASH</span>
             </h1>
+            <!-- FIX 2: Thêm Stat.exe vào mô tả -->
             <p class="text-xl font-semibold mb-8 text-yellow-300">
-                Hãy Quăng Boss Ra Khỏi Desktop!
+                Stat.exe - Hãy Quăng Boss Ra Khỏi Desktop!
             </p>
+            <!-- FIX 3: Sửa text nút Bắt Đầu -->
             <button id="play-button" class="xp-button-style">
-                ▶️ BẮT ĐẦU PHIÊN STAT.EXE
+                ▶️ BẮT ĐẦU CHIẾN ĐẤU
             </button>
             <p class="text-sm mt-8 text-gray-300">
                 (Phải thoát Fullscreen để dừng game)
@@ -465,7 +552,8 @@
         <!-- Khu vực ứng dụng đang chạy -->
         <div class="flex-grow flex items-center h-full">
             <div class="h-full px-2 flex items-center text-white border-r border-l border-opacity-50 border-white border-solid bg-opacity-30 bg-white" id="running-app-indicator" style="display: none;">
-                <span class="text-xs">Cửa sổ Stat.exe - Đang Chạy</span>
+                <!-- FIX 5: Sửa tên ứng dụng trên Taskbar -->
+                <span class="text-xs">Stat.exe</span>
             </div>
         </div>
 
@@ -497,8 +585,16 @@
         const playButton = document.getElementById('play-button');
         const titleBarButtons = document.getElementById('title-bar-buttons');
         const runningAppIndicator = document.getElementById('running-app-indicator');
-        // NEW: Menu chuột phải XP
+        // NEW: Menu chuột phải XP (Desktop)
         const xpContextMenu = document.getElementById('xp-context-menu');
+        // NEW: Menu chuột phải Boss
+        const bossContextMenu = document.getElementById('boss-context-menu');
+        const renameOptionBoss = document.getElementById('rename-symbol-option');
+        const renameModalBoss = document.getElementById('rename-modal-boss');
+        const newNameInputBoss = document.getElementById('new-name-input-boss');
+        const okBtnBoss = document.getElementById('ok-btn-boss');
+        const cancelBtnBoss = document.getElementById('cancel-btn-boss');
+        
         
         // --- CURSOR IMAGES CONSTANTS ---
         const CURSOR_DEFAULT = 'https://tuanphong3108.github.io/mouse-game/cursor.png';
@@ -509,9 +605,6 @@
         // BGM xịn xò của Animator vs. Animation (Đã nhúng link của Phong)
         const BGM_URL = 'https://tuanphong3108.github.io/mouse-game/background_music-original_from_animator_vs_animation_ep_12.m4a';
         let backgroundMusic = null;
-        
-        // SFX PLACEHOLDERS (Sẽ được thêm vào khi Phong có link)
-        const SFX_URLS = {}; 
         
         // SFX Play Function (Giữ nguyên cho tương lai)
         function playSFX(key) {
@@ -576,7 +669,10 @@
         let bossAIInterval;
         const BOSS_AI_MOVE_RATE_MS = 3000;
         const BOSS_AI_SPEED = 0.05; // Tốc độ di chuyển tự động (pixels/ms)
-
+        
+        // [RENAME SYMBOL STATE]
+        let currentBossName = 'Boss'; // Tên mặc định
+        
         let PROJECTILE_FIRING_RATE = 1500; 
         let PROJECTILE_SPEED = 0.2; 
         let currentLevel = 1; 
@@ -686,11 +782,24 @@
 
         playButton.addEventListener('click', startGame);
 
-        // Ngăn chặn menu chuột phải mặc định và hiện menu XP
+        // --- NEW: LOGIC CHUỘT PHẢI CHO BOSS VÀ DESKTOP ---
+        
+        function hideAllContextMenus() {
+            xpContextMenu.style.display = 'none';
+            bossContextMenu.style.display = 'none';
+            renameModalBoss.classList.add('hidden'); // Ẩn modal đổi tên nếu đang mở
+        }
+        
+        // 1. Context Menu Desktop
         document.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             if (gameState !== 'playing') return;
 
+            // Nếu click chuột phải vào BOSS, thì không hiện menu Desktop
+            if (e.target.id === 'boss') return; 
+
+            hideAllContextMenus();
+            
             // Ẩn nếu đang hiện (toggle)
             if (xpContextMenu.style.display === 'block') {
                 xpContextMenu.style.display = 'none';
@@ -716,6 +825,94 @@
 
         });
         
+        // 2. Context Menu Boss (NEW)
+        boss.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (gameState !== 'playing') return;
+
+            hideAllContextMenus();
+
+            // Hiện menu Boss
+            bossContextMenu.style.display = 'block';
+            
+            let x = e.clientX;
+            let y = e.clientY;
+
+            // Đảm bảo menu không bị tràn ra ngoài
+            if (x + bossContextMenu.offsetWidth > window.innerWidth) {
+                x = window.innerWidth - bossContextMenu.offsetWidth - 5;
+            }
+            if (y + bossContextMenu.offsetHeight > window.innerHeight - TASKBAR_HEIGHT) {
+                y = window.innerHeight - TASKBAR_HEIGHT - bossContextMenu.offsetHeight - 5;
+            }
+            
+            bossContextMenu.style.left = `${x}px`;
+            bossContextMenu.style.top = `${y}px`;
+        });
+        
+        // 3. Rename Symbol Logic (NEW)
+        renameOptionBoss.addEventListener('click', () => {
+             hideAllContextMenus();
+             newNameInputBoss.value = boss.title; // Lấy tên hiện tại
+             renameModalBoss.classList.remove('hidden');
+             newNameInputBoss.focus();
+        });
+        
+        okBtnBoss.addEventListener('click', () => {
+            const rawName = newNameInputBoss.value.trim();
+            let newName;
+
+            // Logic kiểm tra tên: chỉ hỗ trợ "Boss" và "Normal thing"
+            if (rawName === 'Boss' || rawName === 'Normal thing') {
+                newName = rawName;
+            } else {
+                // Nếu đặt tên gì ngoài 2 tên kia thì mặc định là "Boss"
+                newName = 'Boss';
+            }
+            
+            // Cập nhật tên và style
+            currentBossName = newName;
+            boss.title = newName;
+            
+            if (newName === 'Normal thing') {
+                boss.classList.add('boss-normal');
+                boss.textContent = '📄'; // Icon file vô hại
+            } else {
+                boss.classList.remove('boss-normal');
+                boss.textContent = isEnraged ? '😈' : '👹'; // Icon Boss ban đầu/phẫn nộ
+            }
+            
+            hideAllContextMenus();
+        });
+
+        cancelBtnBoss.addEventListener('click', hideAllContextMenus);
+        
+        // Ẩn menu khi click bất kỳ đâu trên document
+        documentBody.addEventListener('mousedown', (e) => {
+            if (gameState === 'playing') {
+                // Ẩn các menu nếu click không nằm trong menu hoặc modal
+                const isClickOnMenuOrModal = 
+                    xpContextMenu.contains(e.target) || 
+                    bossContextMenu.contains(e.target) || 
+                    renameModalBoss.contains(e.target);
+                    
+                if (!isClickOnMenuOrModal) {
+                    hideAllContextMenus();
+                }
+            }
+
+            if (gameState === 'gameover' || gameState === 'gamewin' || gameState === 'waiting') {
+                return;
+            }
+            
+            // Logic Kéo CỬA SỔ / BOSS
+            if (!isWindowDragging && !isDragging) {
+                // Đảm bảo con trỏ quay lại default nếu không click vào element đặc biệt
+                handleCursorOver('default');
+            }
+        });
+
+
         // --- WINDOWS XP UTILS ---
         function updateClock() {
             const now = new Date();
@@ -733,7 +930,7 @@
                  throwEnergyBar.classList.remove('bg-blue-500');
                  throwEnergyBar.classList.add('bg-red-500');
                  // Chỉ thêm cooldown visual nếu boss không đang chạy trốn
-                 if (!isInvulnerableBoss && !isBossDamageCooldown) boss.classList.add('boss-cooldown');
+                 if (!isInvulnerableBoss && !isBossDamageCooldown && currentBossName === 'Boss') boss.classList.add('boss-cooldown');
             } else {
                  throwEnergyBar.classList.remove('bg-red-500');
                  throwEnergyBar.classList.add('bg-blue-500');
@@ -748,8 +945,7 @@
             offsetX = e.clientX - phongExeWindow.offsetLeft;
             offsetY = e.clientY - phongExeWindow.offsetTop;
             
-            // Ẩn menu nếu đang mở khi bắt đầu kéo cửa sổ
-            xpContextMenu.style.display = 'none';
+            hideAllContextMenus(); // Ẩn menu nếu đang mở khi bắt đầu kéo cửa sổ
 
             // Đảm bảo con trỏ move hiển thị khi kéo cửa sổ
             handleCursorOver('move'); 
@@ -760,25 +956,6 @@
             // Đảm bảo con trỏ quay lại default
             if (gameState === 'playing') handleCursorOver('default');
         });
-
-        // Xử lý click bất kỳ đâu để ẩn menu XP
-        documentBody.addEventListener('mousedown', (e) => {
-            // Nếu click không nằm trong menu, ẩn menu đi
-            if (xpContextMenu.style.display === 'block' && !xpContextMenu.contains(e.target)) {
-                 xpContextMenu.style.display = 'none';
-            }
-            
-            if (gameState === 'gameover' || gameState === 'gamewin' || gameState === 'waiting') {
-                return;
-            }
-            
-            // Logic Kéo CỬA SỔ / BOSS
-            if (!isWindowDragging && !isDragging) {
-                // Đảm bảo con trỏ quay lại default nếu không click vào element đặc biệt
-                handleCursorOver('default');
-            }
-        });
-
 
         // 1. Theo dõi chuột hệ thống và di chuyển chuột custom
         documentBody.addEventListener('mousemove', (e) => {
@@ -863,7 +1040,7 @@
         // 2. Boss Dragging Handlers
         boss.addEventListener('mousedown', (e) => {
             // KHÔNG kéo được nếu boss đang chạy trốn, đang kéo cửa sổ, hoặc đang mở menu
-            if (gameState !== 'playing' || bossHP <= 0 || isWindowDragging || isInvulnerableBoss || xpContextMenu.style.display === 'block') return; 
+            if (gameState !== 'playing' || bossHP <= 0 || isWindowDragging || isInvulnerableBoss || xpContextMenu.style.display === 'block' || bossContextMenu.style.display === 'block') return; 
             
             if (throwEnergy < ENERGY_COST_PER_THROW || !canDragBoss) {
                 instructionDisplay.textContent = 'HẾT ENERGY HOẶC ĐANG COOLDOWN!';
@@ -1012,7 +1189,7 @@
                 }
             }
             
-            // 5b. NEW: Collision with XP Context Menu (Menu chuột phải)
+            // 5b. Collision with XP Context Menu (Menu chuột phải)
             if (xpContextMenu.style.display !== 'none') {
                 const menuRect = xpContextMenu.getBoundingClientRect();
                 if (checkCollision(bRect, menuRect, 0)) {
@@ -1020,7 +1197,7 @@
                         damageBoss(COLLISION_DAMAGE); // Áp dụng sát thương
                         bossRunAway(); // Boss chạy trốn
                         setBossDamageCooldown(); // Kích hoạt Cooldown
-                        // ĐÃ XÓA LỆNH ĐÓNG MENU: Menu giờ đây là một vật cản kiên cố!
+                        // KHÔNG ĐÓNG MENU! Menu là vật cản kiên cố
                         return;
                     }
                 }
@@ -1082,7 +1259,8 @@
                 // Hiệu ứng nhấp nháy khi bị đập
                 boss.style.backgroundColor = '#f87171';
                 setTimeout(() => { 
-                    boss.style.backgroundColor = isEnraged ? 'rgba(239, 68, 68, 0.5)' : 'rgba(239, 68, 68, 0.5)';
+                    const isBossStyle = currentBossName === 'Boss';
+                    boss.style.backgroundColor = isBossStyle ? 'rgba(239, 68, 68, 0.5)' : 'rgba(68, 239, 102, 0.5)';
                 }, 100);
             }
 
@@ -1226,7 +1404,8 @@
                  // KÍCH HOẠT ENRAGED MODE
                  if (!isEnraged) {
                      isEnraged = true;
-                     boss.textContent = '😈';
+                     // Chỉ đổi icon nếu Boss đang ở trạng thái Boss (không phải Normal thing)
+                     if(currentBossName === 'Boss') boss.textContent = '😈';
                      instructionDisplay.textContent = 'BOSS PHẪN NỘ! CẨN THẬN ĐẠN ĐÔI & HỒI MÁU!';
                  }
              } else {
@@ -1236,7 +1415,7 @@
                  // TẮT ENRAGED MODE
                  if (isEnraged) {
                     isEnraged = false;
-                    boss.textContent = '👹'; 
+                    if(currentBossName === 'Boss') boss.textContent = '👹'; 
                     instructionDisplay.textContent = 'CLICK & DRAG BOSS!';
                  }
              }
@@ -1357,7 +1536,7 @@
             phongExeWindow.style.display = 'none';
             document.querySelector('.xp-taskbar').style.display = 'none';
             runningAppIndicator.style.display = 'none';
-            xpContextMenu.style.display = 'none'; // Ẩn menu nếu đang mở
+            hideAllContextMenus(); // Ẩn tất cả menu/modal
 
             // Hiệu ứng vỡ
             const cursorRect = customCursor.getBoundingClientRect();
@@ -1392,7 +1571,7 @@
                         <h1 class="text-3xl font-extrabold mb-4 text-red-300">SYSTEM CRASH! (STAT.EXE FAILED)</h1>
                         <p class="bsod-details text-white text-base">
                             *** CURSOR_FAILURE_IN_NONPAGED_AREA (0x000000E3)<br>
-                            Con trỏ của bạn đã bị Boss hạ gục! Lỗi này do tệp: <span style="background-color:white; color:#0000a8; padding: 2px;">CUSTOM_CURSOR.DLL</span><br><br>
+                            Con trỏ của bạn đã bị Boss hạ gục! Lỗi này do tệp: <span style="background-color:white; color:#0000a8; padding: 2px;">The Boss.exe</span><br><br>
                             Sống sót được: <span class="text-yellow-400">${score.toFixed(2)} giây</span>. Quá tốt! <br><br>
                             Hệ thống đang cố gắng khôi phục... Vui lòng đợi.
                         </p>
@@ -1427,7 +1606,7 @@
             boss.style.display = 'none';
             projectiles.forEach(p => p.element.remove());
             projectiles = [];
-            xpContextMenu.style.display = 'none';
+            hideAllContextMenus(); // Ẩn tất cả menu/modal
             // Ẩn con trỏ custom khi game win
             customCursor.style.display = 'none'; 
             
