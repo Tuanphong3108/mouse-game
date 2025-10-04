@@ -38,7 +38,7 @@
             z-index: 10000;
         }
         
-        /* NEW: Hiệu ứng khi con trỏ bị trúng đạn */
+        /* Hiệu ứng khi con trỏ bị trúng đạn */
         .cursor-hit {
             filter: brightness(200%) drop-shadow(0 0 10px red); 
             opacity: 0.5; /* Lấp lánh */
@@ -102,9 +102,19 @@
             line-height: 80px;
             text-align: center;
             font-size: 60px;
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.8);
             border-radius: 50%;
+            /* Màu mặc định khi sẵn sàng ném (throwable) */
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.8);
             background-color: rgba(239, 68, 68, 0.5); 
+            /* Transition cho màu sắc box-shadow */
+            transition: all 0.2s ease-in-out, left 2s ease-in-out, top 2s ease-in-out;
+        }
+        
+        /* HIỆU ỨNG BOSS KHI ĐANG COOLDOWN (KHÔNG THỂ KÉO) */
+        .boss-cooldown {
+            box-shadow: 0 0 10px rgba(75, 85, 99, 0.6) !important; /* Xám xịt */
+            cursor: not-allowed;
+            opacity: 0.7;
         }
 
         .projectile {
@@ -118,6 +128,23 @@
             z-index: 9990;
         }
         
+        /* Đạn Phẫn Nộ */
+        .enraged-projectile {
+            position: absolute;
+            width: 25px; /* Lớn hơn */
+            height: 25px;
+            background: linear-gradient(135deg, #f59e0b, #ef4444); /* Màu cam/đỏ rực */
+            border-radius: 50%;
+            pointer-events: none;
+            box-shadow: 0 0 15px #f59e0b;
+            z-index: 9991;
+            animation: pulse-glow 1s infinite alternate;
+        }
+        @keyframes pulse-glow {
+            from { box-shadow: 0 0 10px #f59e0b; }
+            to { box-shadow: 0 0 20px #ef4444; }
+        }
+        
         /* 5. Style cho Start Screen */
         #start-screen {
             background-color: rgba(31, 41, 55, 0.98); /* gray-800 opacity */
@@ -126,7 +153,7 @@
         }
     </style>
 </head>
-<!-- [FIX] Body KHÔNG BẮT ĐẦU VỚI hide-cursor. Mặc định con trỏ hệ thống sẽ hiện ra. -->
+<!-- Body KHÔNG BẮT ĐẦU VỚI hide-cursor. Mặc định con trỏ hệ thống sẽ hiện ra. -->
 <body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4" id="document-body">
 
     <!-- custom-cursor bắt đầu với display: none -->
@@ -175,13 +202,13 @@
             </div>
 
             <!-- Game Status Area -->
-            <div class="mt-4 flex justify-between items-center text-lg font-bold">
-                <span id="score-display" class="text-green-400">Time Alive: 0.0s</span>
-                <!-- NEW: Hiển thị HP của Cursor -->
-                <span id="cursor-hp-display" class="text-pink-400 flex items-center">
+            <div class="mt-4 flex flex-col md:flex-row justify-between items-center text-lg font-bold">
+                <span id="score-display" class="text-green-400 mb-2 md:mb-0">Time Alive: 0.0s</span>
+                <!-- Hiển thị HP của Cursor -->
+                <span id="cursor-hp-display" class="text-pink-400 flex items-center mb-2 md:mb-0">
                     ❤️ 3
                 </span>
-                <span id="instruction-display" class="text-yellow-400">CLICK & DRAG BOSS!</span>
+                <span id="instruction-display" class="text-yellow-400 text-center">CLICK & DRAG BOSS!</span>
             </div>
         </div>
 
@@ -230,16 +257,16 @@
         const finalScore = document.getElementById('final-score');
         const bossHpBar = document.getElementById('boss-hp-bar'); 
         const startScreen = document.getElementById('start-screen'); 
-        const cursorHpDisplay = document.getElementById('cursor-hp-display'); // NEW
+        const cursorHpDisplay = document.getElementById('cursor-hp-display'); 
+        const instructionDisplay = document.getElementById('instruction-display');
 
         const BOSS_MAX_HP = 100;
-        // NEW: Hằng số cho HP của người chơi
         const CURSOR_MAX_HP = 3; 
         const INVULNERABILITY_TIME = 1500; // 1.5 giây bất tử sau khi bị trúng đạn
 
         let bossHP = BOSS_MAX_HP;
-        let cursorHP = CURSOR_MAX_HP; // NEW: HP hiện tại của con trỏ
-        let isInvulnerable = false; // NEW: Trạng thái bất tử (I-frames)
+        let cursorHP = CURSOR_MAX_HP; 
+        let isInvulnerable = false; 
         let gameState = 'ready'; 
         let projectiles = [];
         let bossTargetX = 0;
@@ -259,8 +286,21 @@
         
         // [CÂN BẰNG GAME & ĐỘ KHÓ]
         const MIN_IMPACT_VELOCITY = 0.5; 
+        // PHONG PATCH v2.0: Giảm hệ số sát thương ném xuống rất thấp
         const DAMAGE_MULTIPLIER = 0.08; 
         
+        // [ENRAGED MODE CONSTANTS]
+        const ENRAGED_HP_THRESHOLD = BOSS_MAX_HP / 2; // 50 HP
+        const ENRAGED_PROJECTILE_SPEED = 0.45; // px per ms (Nhanh gấp đôi)
+        const ENRAGED_PROJECTILE_SIZE = 25; // Lớn hơn
+        // PHONG PATCH v3.0: Tốc độ hồi máu khi Boss phẫn nộ (0.15 HP/s)
+        const ENRAGED_HEAL_RATE = 0.15; 
+        let isEnraged = false; // Trạng thái Boss Phẫn Nộ
+
+        // PHONG PATCH v3.0: THROW COOLDOWN LOGIC
+        const THROW_COOLDOWN_MS = 500; // 0.5 giây cooldown giữa các lần kéo Boss
+        let canDragBoss = true; 
+
         // Khởi tạo biến cho độ khó
         let PROJECTILE_FIRING_RATE = 1500; // ms (Thời gian chờ giữa 2 lần bắn)
         let PROJECTILE_SPEED = 0.2; // px per ms (Tốc độ đạn)
@@ -275,7 +315,7 @@
 
         // --- GAME CONTROL FUNCTIONS ---
 
-        // [FIX] Hàm khởi động Game: Ẩn con trỏ hệ thống và hiển thị con trỏ custom
+        // Hàm khởi động Game: Ẩn con trỏ hệ thống và hiển thị con trỏ custom
         function startGame() {
             if (gameState !== 'ready') return;
             gameState = 'playing';
@@ -321,10 +361,12 @@
                 let targetX = e.clientX - bossRect.left - (BOSS_SIZE / 2); 
                 let targetY = e.clientY - bossRect.top - (BOSS_SIZE / 2);
                 
-                // Cập nhật vận tốc Boss (tính bằng pixel/ms) - Vận tốc được scale 10 lần để tạo lực ném
+                // Cập nhật vận tốc Boss (tính bằng pixel/ms)
+                // Hệ số phóng đại lực ném
+                const VELOCITY_SCALE = 2.5; 
                 if (dt > 0) {
-                    bossVX = (dx / dt) * 10; 
-                    bossVY = (dy / dt) * 10;
+                    bossVX = (dx / dt) * VELOCITY_SCALE; 
+                    bossVY = (dy / dt) * VELOCITY_SCALE;
                 }
                 
                 // Giới hạn Boss trong Boss Area
@@ -344,6 +386,21 @@
         // 2. Boss Dragging Handlers
         boss.addEventListener('mousedown', (e) => {
             if (gameState !== 'playing' || bossHP <= 0) return;
+            
+            // PHONG PATCH v3.0: KIỂM TRA COOLDOWN
+            if (!canDragBoss) {
+                // Hiển thị visual feedback nếu không thể kéo
+                instructionDisplay.textContent = 'GIÁP NÉM: Đang hồi chiêu...';
+                boss.classList.add('boss-cooldown');
+                setTimeout(() => {
+                    boss.classList.remove('boss-cooldown');
+                    if (!isEnraged) instructionDisplay.textContent = 'CLICK & DRAG BOSS!';
+                }, 500); 
+                return;
+            }
+            
+            // Reset cooldown status and start dragging
+            canDragBoss = false;
             isDragging = true;
             bossVX = 0;
             bossVY = 0;
@@ -358,6 +415,20 @@
             if (isDragging) {
                 isDragging = false;
                 boss.style.transition = 'left 2s ease-in-out, top 2s ease-in-out';
+                
+                // PHONG PATCH v3.0: KÍCH HOẠT COOLDOWN (0.5s)
+                instructionDisplay.textContent = `GIÁP NÉM: ${THROW_COOLDOWN_MS/1000}s Cooldown`;
+                boss.classList.add('boss-cooldown');
+                
+                setTimeout(() => {
+                    canDragBoss = true;
+                    boss.classList.remove('boss-cooldown');
+                    if (!isEnraged) {
+                        instructionDisplay.textContent = 'CLICK & DRAG BOSS!';
+                    } else {
+                        instructionDisplay.textContent = 'BOSS PHẪN NỘ! CẨN THẬN ĐẠN ĐÔI & HỒI MÁU!';
+                    }
+                }, THROW_COOLDOWN_MS);
             }
         });
 
@@ -406,7 +477,6 @@
 
             // 4. Boundary check and Damage on impact (Ném vào tường)
             let damaged = false;
-            // MIN_IMPACT_VELOCITY và DAMAGE_MULTIPLIER đã được định nghĩa ở trên
             
             // Check X boundary
             if (currentX < 0) {
@@ -484,7 +554,7 @@
             const dy = targetY - startY;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            // Dùng tốc độ đạn hiện tại để tính vận tốc
+            // --- STANDARD PROJECTILE ---
             const speed = PROJECTILE_SPEED; 
             const vx = (dx / distance) * speed;
             const vy = (dy / distance) * speed;
@@ -502,7 +572,34 @@
                 y: startY - PROJECTILE_SIZE / 2,
                 vx: vx,
                 vy: vy,
+                size: PROJECTILE_SIZE,
+                isEnraged: false
             });
+            
+            // --- ENRAGED PROJECTILE (Nếu Boss Phẫn Nộ) ---
+            if (isEnraged) {
+                // Tái sử dụng tính toán vận tốc nhưng với tốc độ/kích thước khác
+                const enragedSpeed = ENRAGED_PROJECTILE_SPEED;
+                const enragedVx = (dx / distance) * enragedSpeed;
+                const enragedVy = (dy / distance) * enragedSpeed;
+
+                const enragedElement = document.createElement('div');
+                enragedElement.className = 'enraged-projectile'; // Dùng class mới
+                enragedElement.style.position = 'fixed'; 
+                enragedElement.style.left = `${startX - ENRAGED_PROJECTILE_SIZE / 2}px`;
+                enragedElement.style.top = `${startY - ENRAGED_PROJECTILE_SIZE / 2}px`;
+                documentBody.appendChild(enragedElement);
+
+                projectiles.push({
+                    element: enragedElement,
+                    x: startX - ENRAGED_PROJECTILE_SIZE / 2,
+                    y: startY - ENRAGED_PROJECTILE_SIZE / 2,
+                    vx: enragedVx,
+                    vy: enragedVy,
+                    size: ENRAGED_PROJECTILE_SIZE,
+                    isEnraged: true
+                });
+            }
         }
 
         // 6. Cập nhật vị trí đạn và kiểm tra va chạm
@@ -518,10 +615,12 @@
                 p.element.style.left = `${p.x}px`;
                 p.element.style.top = `${p.y}px`;
 
-                // Kiểm tra va chạm với Chuột
-                if (!isInvulnerable && checkCollision(cRect, p.element.getBoundingClientRect(), 10)) {
-                    damageCursor(); // NEW: Gây sát thương cho chuột
-                    p.element.remove(); // NEW: Xóa đạn đã chạm
+                // Kiểm tra va chạm với Chuột (margin được điều chỉnh theo kích thước)
+                const collisionMargin = p.isEnraged ? 5 : 10; 
+                
+                if (!isInvulnerable && checkCollision(cRect, p.element.getBoundingClientRect(), collisionMargin)) {
+                    damageCursor(); // Gây sát thương cho chuột
+                    p.element.remove(); // Xóa đạn đã chạm
                     
                     // Nếu Chuột đã Game Over, dừng xử lý
                     if (gameState !== 'playing') return; 
@@ -530,7 +629,7 @@
                 }
 
                 // Giữ lại đạn còn trong màn hình
-                if (p.x > -PROJECTILE_SIZE && p.x < window.innerWidth && p.y > -PROJECTILE_SIZE && p.y < window.innerHeight) {
+                if (p.x > -p.size && p.x < window.innerWidth && p.y > -p.size && p.y < window.innerHeight) {
                     newProjectiles.push(p);
                 } else {
                     p.element.remove();
@@ -568,16 +667,36 @@
              const percent = (bossHP / BOSS_MAX_HP) * 100;
              bossHpBar.style.width = `${percent}%`;
              
+             // Cập nhật màu sắc HP Bar và kiểm tra Enraged Mode
              if (percent < 20) {
-                 bossHpBar.classList.remove('bg-red-500');
+                 bossHpBar.classList.remove('bg-red-500', 'bg-red-700/80');
                  bossHpBar.classList.add('bg-orange-500');
+             } else if (percent < 50) { 
+                 bossHpBar.classList.remove('bg-orange-500', 'bg-red-500');
+                 bossHpBar.classList.add('bg-red-700/80');
+                 
+                 // KÍCH HOẠT ENRAGED MODE
+                 if (!isEnraged) {
+                     isEnraged = true;
+                     boss.textContent = '😈'; // Biểu cảm Boss khi Enraged
+                     instructionDisplay.textContent = 'BOSS PHẪN NỘ! CẨN THẬN ĐẠN ĐÔI & HỒI MÁU!';
+                     console.log('BOSS ENRAGED! Passive Healing Active.');
+                 }
              } else {
-                 bossHpBar.classList.remove('bg-orange-500');
+                 bossHpBar.classList.remove('bg-orange-500', 'bg-red-700/80');
                  bossHpBar.classList.add('bg-red-500');
+                 
+                 // TẮT ENRAGED MODE (Nếu Boss hồi máu vượt 50% - nếu có cơ chế hồi máu mạnh)
+                 if (isEnraged) {
+                    isEnraged = false;
+                    boss.textContent = '👹'; 
+                    instructionDisplay.textContent = 'CLICK & DRAG BOSS!';
+                    console.log('BOSS CALMED DOWN (Should not happen unless healed past 50%)');
+                 }
              }
         }
         
-        // NEW: 14. Gây sát thương cho Chuột và kích hoạt Bất tử
+        // Gây sát thương cho Chuột và kích hoạt Bất tử
         function damageCursor() {
             if (isInvulnerable || gameState !== 'playing') return;
 
@@ -599,7 +718,7 @@
             }
         }
 
-        // NEW: Cập nhật hiển thị HP của Chuột
+        // Cập nhật hiển thị HP của Chuột
         function updateCursorHPDisplay() {
              const hearts = '❤️';
              cursorHpDisplay.innerHTML = `${hearts.repeat(cursorHP)} <span class="text-xl">${cursorHP}</span>`;
@@ -614,9 +733,9 @@
         }
 
         
-        // [NEW - FIX 3] Cập nhật độ khó (tăng tốc độ đạn và tần suất bắn nhanh hơn)
+        // Cập nhật độ khó (tăng tốc độ đạn và tần suất bắn nhanh hơn)
         function updateDifficulty() {
-            // Level tăng mỗi 10 giây (trước đây là 15 giây)
+            // Level tăng mỗi 10 giây
             const nextLevelThreshold = currentLevel * 10; 
             
             if (score >= nextLevelThreshold) {
@@ -632,9 +751,20 @@
                 clearInterval(projectileInterval);
                 projectileInterval = setInterval(fireProjectile, PROJECTILE_FIRING_RATE);
                 
-                document.getElementById('instruction-display').textContent = `LEVEL UP! Cấp độ: ${currentLevel}`;
+                // Cập nhật hướng dẫn tạm thời
+                if (!isEnraged) {
+                     instructionDisplay.textContent = `LEVEL UP! Cấp độ: ${currentLevel}`;
+                }
+
                 setTimeout(() => {
-                    document.getElementById('instruction-display').textContent = 'CLICK & DRAG BOSS!';
+                    // Chỉ hiển thị lại hướng dẫn cũ nếu Boss chưa Enraged và không đang cooldown
+                    if(canDragBoss) {
+                        if(!isEnraged) { 
+                            instructionDisplay.textContent = 'CLICK & DRAG BOSS!';
+                        } else {
+                            instructionDisplay.textContent = 'BOSS PHẪN NỘ! CẨN THẬN ĐẠN ĐÔI & HỒI MÁU!';
+                        }
+                    }
                 }, 2000);
 
                 console.log(`Độ khó tăng lên Level ${currentLevel}. Speed: ${PROJECTILE_SPEED.toFixed(2)}, Rate: ${PROJECTILE_FIRING_RATE}ms`);
@@ -651,9 +781,18 @@
                 score += deltaTime / 1000;
                 scoreDisplay.textContent = `Time Alive: ${score.toFixed(2)}s`;
                 
-                updateDifficulty(); // [NEW] Kiểm tra và tăng độ khó
+                updateDifficulty(); 
                 updateBoss(deltaTime);
                 updateProjectiles(deltaTime);
+                
+                // PHONG PATCH v2.0 & v3.0: LOGIC HỒI MÁU PHẪN NỘ
+                if (isEnraged && bossHP > 0) {
+                    // Hồi máu dựa trên thời gian (HP = 0.15/giây)
+                    const healAmount = ENRAGED_HEAL_RATE * (deltaTime / 1000);
+                    bossHP += healAmount; 
+                    bossHP = Math.min(bossHP, BOSS_MAX_HP); // Không vượt quá HP tối đa
+                    updateHPBar();
+                }
             }
             
             requestAnimationFrame(gameLoop);
@@ -664,7 +803,7 @@
             if (gameState !== 'playing') return;
             gameState = 'gameover';
             
-            // [FIX] BẬT LẠI con trỏ hệ thống để user click được nút Play Again
+            // BẬT LẠI con trỏ hệ thống để user click được nút Play Again
             documentBody.classList.remove('hide-cursor'); // Tắt ẩn
             documentBody.classList.add('show-cursor'); // Bật hiện (cho rõ ràng)
             
@@ -702,7 +841,7 @@
             if (gameState !== 'playing') return;
             gameState = 'gamewin';
             
-            // [FIX] BẬT LẠI con trỏ hệ thống để user click được nút Play Again
+            // BẬT LẠI con trỏ hệ thống để user click được nút Play Again
             documentBody.classList.remove('hide-cursor');
             documentBody.classList.add('show-cursor');
 
@@ -789,7 +928,7 @@
         bossTargetY = 0;
         
         updateHPBar();
-        updateCursorHPDisplay(); // NEW: Khởi tạo hiển thị HP chuột
+        updateCursorHPDisplay(); 
         
         console.log("Game đã ở trạng thái READY. Con trỏ hệ thống đang hiển thị để click nút Play.");
 
