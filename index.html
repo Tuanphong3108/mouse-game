@@ -14,7 +14,7 @@
         const manifestContent = {
             "name": "Cursor Clash",
             "short_name": "Clash",
-            "description": "Stat.exe - Quăng Boss Ra Khỏi Desktop!",
+            "description": "Quăng Boss Ra Khỏi Desktop!",
             "start_url": "./",
             "display": "standalone",
             "orientation": "landscape", /* Đề xuất dùng màn hình ngang cho game */
@@ -365,7 +365,7 @@
                     <div class="flex items-center">
                         <span class="text-xs font-bold text-pink-700 mr-2 whitespace-nowrap">CURSOR LIFE:</span>
                         <!-- Đã đổi sang chỉ hiển thị 1 trái tim -->
-                        <span id="cursor-hp-display" class="text-pink-600 flex items-center font-bold text-base">❤️ 20</span>
+                        <span id="cursor-hp-display" class="text-pink-600 flex items-center font-bold text-base">❤️ 10</span>
                     </div>
 
                     <!-- SCORE -->
@@ -465,7 +465,7 @@
 
         // === CÂN BẰNG GAME ===
         const BOSS_MAX_HP = 200; 
-        const CURSOR_MAX_HP = 20; 
+        const CURSOR_MAX_HP = 10; // Đã giảm từ 20 xuống 10 theo yêu cầu của Phong
         const COLLISION_DAMAGE = 20; // Sát thương cố định khi Boss va chạm vào tường/cửa sổ
         const TASKBAR_HEIGHT = 30; 
         const INVULNERABILITY_TIME = 1500; 
