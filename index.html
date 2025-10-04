@@ -102,6 +102,36 @@
             border-radius: 4px;
         }
         /* --- END BSOD STYLE --- */
+        
+        /* --- NEW: XP Context Menu Style --- */
+        .xp-menu {
+            position: fixed;
+            background-color: #f7f7f3; /* Màu nền Classic */
+            border: 1px solid #000;
+            box-shadow: 2px 2px 0 #888; /* Shadow 3D */
+            padding: 2px;
+            font-size: 13px;
+            min-width: 150px;
+            z-index: 10002; /* Cao nhất */
+            user-select: none;
+        }
+        .menu-item {
+            padding: 2px 20px 2px 4px;
+            white-space: nowrap;
+            cursor: default; /* Chuột mặc định XP */
+            margin-bottom: 1px;
+        }
+        .menu-item:hover {
+            background-color: #316ac5; /* Highlight Blue */
+            color: white;
+        }
+        .menu-divider {
+            height: 1px;
+            margin: 2px 0;
+            background-color: #d4d0c8;
+            border-top: 1px solid #fff;
+        }
+
 
         /* Taskbar Windows XP Classic Blue */
         .xp-taskbar {
@@ -389,6 +419,17 @@
             </div>
         </div>
         
+        <!-- NEW: XP Context Menu (Menu chuột phải) -->
+        <div id="xp-context-menu" class="xp-menu" style="display: none;">
+            <div class="menu-item border-b border-gray-400">Tổ chức Icon</div>
+            <div class="menu-item border-b border-gray-400">Sắp xếp theo...</div>
+            <div class="menu-item">Thuộc tính</div>
+            <div class="menu-divider"></div>
+            <!-- Mục Reset Game -->
+            <div class="menu-item font-bold" onclick="resetGame()">New Game (F5)</div>
+            <div class="menu-item" onclick="window.close()">Thoát XP</div>
+        </div>
+
         <!-- Game Over / Game Win Message (Chung) -->
         <div id="game-over-message" class="bg-gray-900/95">
             <!-- Nội dung sẽ được JS chèn vào -->
@@ -456,6 +497,8 @@
         const playButton = document.getElementById('play-button');
         const titleBarButtons = document.getElementById('title-bar-buttons');
         const runningAppIndicator = document.getElementById('running-app-indicator');
+        // NEW: Menu chuột phải XP
+        const xpContextMenu = document.getElementById('xp-context-menu');
         
         // --- CURSOR IMAGES CONSTANTS ---
         const CURSOR_DEFAULT = 'https://tuanphong3108.github.io/mouse-game/cursor.png';
@@ -486,7 +529,7 @@
         // === CÂN BẰNG GAME ===
         const BOSS_MAX_HP = 200; 
         const CURSOR_MAX_HP = 10; // Đã giảm từ 20 xuống 10 theo yêu cầu của Phong
-        const COLLISION_DAMAGE = 20; // Sát thương cố định khi Boss va chạm vào tường/cửa sổ
+        const COLLISION_DAMAGE = 20; // Sát thương cố định khi Boss va chạm vào tường/cửa sổ/menu
         const TASKBAR_HEIGHT = 30; 
         const INVULNERABILITY_TIME = 1500; 
         
@@ -611,9 +654,8 @@
             if (gameState !== 'waiting') return;
             gameState = 'playing';
 
-            // 1. Setup và Phát BGM (NEW)
+            // 1. Setup và Phát BGM
             setupBGM();
-            // Xử lý lỗi nếu trình duyệt chặn tự động phát
             backgroundMusic.play().catch(e => {
                 console.warn("Lỗi tự động phát nhạc nền. Cần tương tác người dùng.");
             });
@@ -644,9 +686,34 @@
 
         playButton.addEventListener('click', startGame);
 
-        // Ngăn chặn menu chuột phải
+        // Ngăn chặn menu chuột phải mặc định và hiện menu XP
         document.addEventListener('contextmenu', (e) => {
             e.preventDefault();
+            if (gameState !== 'playing') return;
+
+            // Ẩn nếu đang hiện (toggle)
+            if (xpContextMenu.style.display === 'block') {
+                xpContextMenu.style.display = 'none';
+                return;
+            }
+            
+            // Hiện và định vị menu
+            xpContextMenu.style.display = 'block';
+            
+            let x = e.clientX;
+            let y = e.clientY;
+
+            // Đảm bảo menu không bị tràn ra ngoài (offset)
+            if (x + xpContextMenu.offsetWidth > window.innerWidth) {
+                x = window.innerWidth - xpContextMenu.offsetWidth - 5;
+            }
+            if (y + xpContextMenu.offsetHeight > window.innerHeight - TASKBAR_HEIGHT) {
+                y = window.innerHeight - TASKBAR_HEIGHT - xpContextMenu.offsetHeight - 5;
+            }
+            
+            xpContextMenu.style.left = `${x}px`;
+            xpContextMenu.style.top = `${y}px`;
+
         });
         
         // --- WINDOWS XP UTILS ---
@@ -665,6 +732,7 @@
             if (throwEnergy < ENERGY_COST_PER_THROW || !canDragBoss) {
                  throwEnergyBar.classList.remove('bg-blue-500');
                  throwEnergyBar.classList.add('bg-red-500');
+                 // Chỉ thêm cooldown visual nếu boss không đang chạy trốn
                  if (!isInvulnerableBoss && !isBossDamageCooldown) boss.classList.add('boss-cooldown');
             } else {
                  throwEnergyBar.classList.remove('bg-red-500');
@@ -680,6 +748,9 @@
             offsetX = e.clientX - phongExeWindow.offsetLeft;
             offsetY = e.clientY - phongExeWindow.offsetTop;
             
+            // Ẩn menu nếu đang mở khi bắt đầu kéo cửa sổ
+            xpContextMenu.style.display = 'none';
+
             // Đảm bảo con trỏ move hiển thị khi kéo cửa sổ
             handleCursorOver('move'); 
         });
@@ -690,11 +761,28 @@
             if (gameState === 'playing') handleCursorOver('default');
         });
 
+        // Xử lý click bất kỳ đâu để ẩn menu XP
+        documentBody.addEventListener('mousedown', (e) => {
+            // Nếu click không nằm trong menu, ẩn menu đi
+            if (xpContextMenu.style.display === 'block' && !xpContextMenu.contains(e.target)) {
+                 xpContextMenu.style.display = 'none';
+            }
+            
+            if (gameState === 'gameover' || gameState === 'gamewin' || gameState === 'waiting') {
+                return;
+            }
+            
+            // Logic Kéo CỬA SỔ / BOSS
+            if (!isWindowDragging && !isDragging) {
+                // Đảm bảo con trỏ quay lại default nếu không click vào element đặc biệt
+                handleCursorOver('default');
+            }
+        });
+
 
         // 1. Theo dõi chuột hệ thống và di chuyển chuột custom
         documentBody.addEventListener('mousemove', (e) => {
             if (gameState === 'gameover' || gameState === 'gamewin' || gameState === 'waiting') {
-                // Nếu game kết thúc/chưa bắt đầu, không di chuyển con trỏ custom
                 return;
             }
             
@@ -772,8 +860,8 @@
 
         // 2. Boss Dragging Handlers
         boss.addEventListener('mousedown', (e) => {
-            // KHÔNG kéo được nếu boss đang chạy trốn
-            if (gameState !== 'playing' || bossHP <= 0 || isWindowDragging || isInvulnerableBoss) return; 
+            // KHÔNG kéo được nếu boss đang chạy trốn, đang kéo cửa sổ, hoặc đang mở menu
+            if (gameState !== 'playing' || bossHP <= 0 || isWindowDragging || isInvulnerableBoss || xpContextMenu.style.display === 'block') return; 
             
             if (throwEnergy < ENERGY_COST_PER_THROW || !canDragBoss) {
                 instructionDisplay.textContent = 'HẾT ENERGY HOẶC ĐANG COOLDOWN!';
@@ -825,7 +913,7 @@
         }
 
 
-        // 4. Boss Run Away Logic (Khi bị đập vào cửa sổ)
+        // 4. Boss Run Away Logic (Khi bị đập vào cửa sổ/tường/menu)
         function bossRunAway() {
             if (isInvulnerableBoss || bossHP <= 0) return;
             
@@ -897,9 +985,7 @@
             bossVX *= FRICTION_MULTIPLIER; 
             bossVY *= FRICTION_MULTIPLIER;
             
-            // --- KIỂM TRA VA CHẠM CỬA SỔ VÀ TƯỜNG ---
-            
-            const wRect = phongExeWindow.getBoundingClientRect();
+            // --- TẠO BOUNDING BOX MỚI CHO BOSS ---
             let bRect = { 
                 left: currentX, 
                 right: currentX + BOSS_SIZE, 
@@ -913,17 +999,34 @@
             let hitBoundary = false;
             
             // 5a. Collision with XP Window (Cửa sổ Stat.exe)
+            const wRect = phongExeWindow.getBoundingClientRect();
+            
             if (checkCollision(bRect, wRect, 0)) { 
                 if (!isInvulnerableBoss && !isBossDamageCooldown) {
                     damageBoss(COLLISION_DAMAGE); // Áp dụng sát thương cố định 20HP
-                    bossRunAway(); // Boss chạy trốn ngay lập tức
+                    bossRunAway(); // Boss chạy trốn ngay lập tập
                     setBossDamageCooldown(); // Kích hoạt Cooldown sát thương
                     return; // Thoát ngay, boss đang chạy trốn, không cần xử lý va chạm khác
                 }
-                // Nếu đang trong chế độ chạy trốn, vẫn cho phép xuyên qua cửa sổ tạm thời
+            }
+            
+            // 5b. NEW: Collision with XP Context Menu (Menu chuột phải)
+            if (xpContextMenu.style.display !== 'none') {
+                const menuRect = xpContextMenu.getBoundingClientRect();
+                if (checkCollision(bRect, menuRect, 0)) {
+                    if (!isInvulnerableBoss && !isBossDamageCooldown) {
+                        damageBoss(COLLISION_DAMAGE); // Áp dụng sát thương
+                        bossRunAway(); // Boss chạy trốn
+                        setBossDamageCooldown(); // Kích hoạt Cooldown
+                        // Tắt menu ngay lập tức để tránh loop va chạm
+                        xpContextMenu.style.display = 'none'; 
+                        return;
+                    }
+                }
             }
 
-            // 5b. Collision with Desktop Boundaries (Tường)
+
+            // 5c. Collision with Desktop Boundaries (Tường)
             
             if (!isInvulnerableBoss) { // Chỉ tính va chạm tường và sát thương khi KHÔNG chạy trốn
                 
@@ -969,8 +1072,7 @@
                     hitBoundary = true;
                 }
             } else {
-                 // Khi đang chạy trốn, Boss có thể tạm thời vượt qua tường (không bị tính damage, không dừng lại)
-                 // Nhưng vẫn cố gắng giới hạn trong viewport để không bị mất
+                 // Khi đang chạy trốn, Boss có thể tạm thời vượt qua tường 
                  currentX = Math.max(0, Math.min(currentX, desktopWidth - BOSS_SIZE));
                  currentY = Math.max(0, Math.min(currentY, desktopHeight - BOSS_SIZE));
             }
@@ -1244,16 +1346,17 @@
             if (gameState !== 'playing') return;
             gameState = 'gameover';
             
-            if (backgroundMusic) backgroundMusic.pause(); // Dừng nhạc nền khi thua (NEW)
+            if (backgroundMusic) backgroundMusic.pause(); // Dừng nhạc nền khi thua 
             
             // Dừng AI và đạn
             clearInterval(projectileInterval); 
             clearInterval(bossAIInterval);
             
-            // Ẩn cửa sổ game và taskbar
+            // Ẩn cửa sổ game, taskbar, và menu XP
             phongExeWindow.style.display = 'none';
             document.querySelector('.xp-taskbar').style.display = 'none';
             runningAppIndicator.style.display = 'none';
+            xpContextMenu.style.display = 'none'; // Ẩn menu nếu đang mở
 
             // Hiệu ứng vỡ
             const cursorRect = customCursor.getBoundingClientRect();
@@ -1317,12 +1420,13 @@
             documentBody.classList.remove('hide-cursor');
             documentBody.classList.add('show-cursor');
             
-            // Dừng AI, đạn, ẩn boss
+            // Dừng AI, đạn, ẩn boss và menu XP
             clearInterval(projectileInterval); 
             clearInterval(bossAIInterval);
             boss.style.display = 'none';
             projectiles.forEach(p => p.element.remove());
             projectiles = [];
+            xpContextMenu.style.display = 'none';
             // Ẩn con trỏ custom khi game win
             customCursor.style.display = 'none'; 
             
@@ -1394,7 +1498,7 @@
             animateFragment(0);
         }
 
-        // 14. Reset game
+        // 14. Reset game (Reload trang)
         function resetGame() {
             window.location.reload(); 
         }
