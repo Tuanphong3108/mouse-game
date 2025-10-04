@@ -3,243 +3,434 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cuộc Chiến Con Trỏ | Cursor Clash</title>
+    <title>Cursor Clash</title>
+    
+    <!-- 1. FAVICON: Thêm con trỏ làm favicon tab -->
+    <link rel="icon" href="https://tuanphong3108.github.io/mouse-game/cursor.png" type="image/png">
+    
+    <!-- 2. LOGIC PWA MANIFEST (Dùng Data URI để giữ trong 1 file) -->
+    <script>
+        // Nội dung Manifest JSON
+        const manifestContent = {
+            "name": "Cursor Clash",
+            "short_name": "Clash",
+            "description": "Stat.exe - Quăng Boss Ra Khỏi Desktop!",
+            "start_url": "./",
+            "display": "standalone",
+            "orientation": "landscape", /* Đề xuất dùng màn hình ngang cho game */
+            "background_color": "#0a246a",
+            "theme_color": "#0a246a",
+            "icons": [
+                {"src": "https://tuanphong3108.github.io/mouse-game/cursor.png", "sizes": "32x32", "type": "image/png"},
+                {"src": "https://tuanphong3108.github.io/mouse-game/cursor.png", "sizes": "192x192", "type": "image/png"},
+                {"src": "https://tuanphong3108.github.io/mouse-game/cursor.png", "sizes": "512x512", "type": "image/png"}
+            ]
+        };
+        
+        // Tạo Data URI cho Manifest và chèn vào Head
+        try {
+            const manifestJsonString = JSON.stringify(manifestContent);
+            const base64Manifest = btoa(manifestJsonString);
+            const dataUri = 'data:application/json;base64,' + base64Manifest;
+            
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = dataUri;
+            document.head.appendChild(link);
+        } catch (error) {
+            console.error('Không thể tạo PWA Manifest Data URI:', error);
+        }
+    </script>
+    
     <!-- Tải Tailwind CSS cho styling hiện đại và responsive -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 1. Ẩn/Hiện con trỏ chuột hệ thống dựa trên class */
-        body, #game-container, button, #boss, .projectile, #start-screen {
-            font-family: 'Inter', sans-serif;
-            user-select: none; /* Rất quan trọng: Chặn bôi đen/chọn chữ */
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
+        /* Tùy chỉnh font chữ giống XP và các hiệu ứng riêng */
+        @import url('https://fonts.googleapis.com/css2?family=Tahoma:wght@400;700&display=swap');
+        
+        /* 1. ĐIỀU CHỈNH LẠI LOGIC CURSOR FIX */
+        /* Ẩn chuột hệ thống */
+        .hide-cursor { 
+            cursor: none !important; 
         }
         
-        /* CLASS DÙNG ĐỂ ẨN con trỏ hệ thống (CHỈ DÙNG KHI CHƠI GAME) */
-        .hide-cursor {
-            cursor: none !important;
-        }
-        /* CLASS DÙNG ĐỂ HIỆN con trỏ hệ thống (Mặc định hoặc GAME OVER) */
-        .show-cursor {
-            cursor: default !important;
+        /* Hiện chuột hệ thống (mặc định) */
+        .show-cursor { 
+            cursor: default !important; 
         }
 
-        /* 2. Style cho con trỏ chuột custom (Chuột chính của người chơi) */
+        * {
+            font-family: Tahoma, sans-serif;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        
+        /* NỀN WINDOWS XP BLUE HILLS (Đã CẬP NHẬT link GitHub MỚI của Phong) */
+        .xp-desktop {
+            background-image: url('https://tuanphong3108.github.io/mouse-game/wallpaper.jpg');
+            background-size: cover;
+            background-position: center;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            padding-bottom: 30px; 
+            position: relative; 
+        }
+        
+        /* --- BSOD STYLE (IMAGE) --- */
+        .bsod-image-overlay {
+            /* Dùng ảnh BSOD cũ và đẹp của Phong làm nền */
+            background-image: url('https://i.ytimg.com/vi/t9ZFiJRoaHk/maxresdefault.jpg');
+            background-size: cover;
+            background-position: center;
+            color: #ffffff; /* Text color */
+            font-family: 'Courier New', monospace; 
+            padding: 20px;
+            text-align: left;
+            line-height: 1.5;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Hộp thoại chữ để chữ nổi bật trên nền BSOD */
+        .bsod-image-overlay .bsod-text-box {
+            background-color: rgba(0, 0, 168, 0.7); /* Hộp trong suốt màu xanh */
+            padding: 20px;
+            border: 2px solid white;
+            max-width: 80%;
+            margin: auto;
+            border-radius: 4px;
+        }
+        /* --- END BSOD STYLE --- */
+
+        /* Taskbar Windows XP Classic Blue */
+        .xp-taskbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(to right, #0a246a, #4a6ddc);
+            border-top: 1px solid #fff;
+            box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            padding: 2px 4px;
+            z-index: 10000;
+        }
+        .xp-start-button {
+            height: 26px;
+            min-width: 80px;
+            background: linear-gradient(to right, #387834 0%, #387834 35%, #85b882 100%);
+            border: 1px solid #285427;
+            border-radius: 2px;
+            box-shadow: 1px 1px 0 #fff inset, -1px -1px 0 #285427 inset;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 8px;
+            margin-right: 4px;
+            text-shadow: 1px 1px #0a246a;
+            user-select: none;
+        }
+        .xp-start-button:active {
+            box-shadow: -1px -1px 0 #fff inset, 1px 1px 0 #285427 inset;
+        }
+        .xp-start-logo {
+            width: 18px; 
+            height: 18px; 
+            margin-right: 4px;
+            filter: drop-shadow(1px 1px 0 #0a246a);
+        }
+        
+        /* Custom Cursor */
         #custom-cursor {
             position: fixed;
-            pointer-events: none; 
+            pointer-events: none; /* RẤT QUAN TRỌNG: Cho phép click xuyên qua con trỏ custom */
             width: 40px; 
             height: 40px;
             transform: translate(-50%, -50%);
-            /* Thêm transition cho hiệu ứng lấp lánh (hit) */
             filter: drop-shadow(0 0 5px rgba(252, 165, 165, 0.7)); 
-            transition: transform 0.05s ease-out, opacity 0.1s, filter 0.1s; 
-            z-index: 10000;
+            transition: filter 0.1s; 
+            z-index: 10001;
         }
-        
-        /* Hiệu ứng khi con trỏ bị trúng đạn */
         .cursor-hit {
             filter: brightness(200%) drop-shadow(0 0 10px red); 
-            opacity: 0.5; /* Lấp lánh */
-            animation: hit-flash 0.1s;
+            opacity: 0.5;
         }
 
-        @keyframes hit-flash {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -50%) scale(1.1); }
-        }
-
-        /* 3. Style cho con trỏ "FAKE" và MẢNH VỠ khi thua */
-        #fake-cursor-shatter {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            z-index: 10001;
-            display: none; 
-            animation: shatter-effect 0.8s forwards;
-        }
-
-        .fragment {
-            position: absolute;
-            width: 8px;
-            height: 8px;
-            background-color: #fca5a5; /* Màu đỏ nhạt của con trỏ */
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 9999;
-            transition: opacity 0.5s;
-        }
-
-        /* Keyframes cho hiệu ứng VỠ TAN TÀNH (cho chuột fake) */
-        @keyframes shatter-effect {
-            0% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
-            100% { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(90deg); }
-        }
-        
-        /* Hiệu ứng rung lắc khi Boss tấn công */
-        @keyframes screen-shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            20% { transform: translate(-1px, -2px) rotate(-1deg); }
-            40% { transform: translate(-3px, 0px) rotate(1deg); }
-            60% { transform: translate(3px, 2px) rotate(0deg); }
-            80% { transform: translate(-1px, -1px) rotate(-1deg); }
-            100% { transform: translate(1px, 1px) rotate(0deg); }
-        }
-        .shake-screen {
-            animation: screen-shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
-            transform: translate3d(0, 0, 0);
-            backface-visibility: hidden;
-            perspective: 1000px;
-        }
-
-        /* 4. Style cho Boss và đạn */
+        /* Boss and Projectiles */
         #boss {
             position: absolute;
             width: 80px;
             height: 80px;
-            transition: left 2s ease-in-out, top 2s ease-in-out; 
             line-height: 80px;
             text-align: center;
             font-size: 60px;
             border-radius: 50%;
-            /* Màu mặc định khi sẵn sàng ném (throwable) */
             box-shadow: 0 0 15px rgba(239, 68, 68, 0.8);
             background-color: rgba(239, 68, 68, 0.5); 
-            /* Transition cho màu sắc box-shadow */
-            transition: all 0.2s ease-in-out, left 2s ease-in-out, top 2s ease-in-out;
+            transition: all 0.2s ease-in-out;
+            z-index: 5000; 
+            touch-action: none; 
         }
-        
-        /* HIỆU ỨNG BOSS KHI ĐANG COOLDOWN (KHÔNG THỂ KÉO) */
         .boss-cooldown {
-            box-shadow: 0 0 10px rgba(75, 85, 99, 0.6) !important; /* Xám xịt */
-            cursor: not-allowed;
+            box-shadow: 0 0 10px rgba(75, 85, 99, 0.6) !important;
             opacity: 0.7;
         }
+        .boss-running {
+            background-color: rgba(67, 56, 202, 0.8) !important; /* Indigo Blue - Chạy trốn */
+            box-shadow: 0 0 20px rgba(99, 102, 241, 1) !important;
+            opacity: 0.9;
+        }
 
-        .projectile {
-            position: absolute;
-            width: 15px;
-            height: 15px;
-            background-color: #ef4444; 
-            border-radius: 50%;
+        .projectile, .enraged-projectile {
+            position: fixed; 
             pointer-events: none;
-            box-shadow: 0 0 10px #f87171;
+            border-radius: 50%;
             z-index: 9990;
         }
-        
-        /* Đạn Phẫn Nộ */
+        .projectile {
+            width: 15px; height: 15px; background-color: #ef4444; 
+            box-shadow: 0 0 10px #f87171;
+        }
         .enraged-projectile {
-            position: absolute;
-            width: 25px; /* Lớn hơn */
-            height: 25px;
-            background: linear-gradient(135deg, #f59e0b, #ef4444); /* Màu cam/đỏ rực */
-            border-radius: 50%;
-            pointer-events: none;
+            width: 25px; height: 25px; background: linear-gradient(135deg, #f59e0b, #ef4444);
             box-shadow: 0 0 15px #f59e0b;
-            z-index: 9991;
             animation: pulse-glow 1s infinite alternate;
         }
-        @keyframes pulse-glow {
-            from { box-shadow: 0 0 10px #f59e0b; }
-            to { box-shadow: 0 0 20px #ef4444; }
+
+        /* Cửa Sổ Windows XP Dialog (Cửa sổ Stat.exe) */
+        #phong-exe-window {
+            position: absolute;
+            top: 50px; left: 50px;
+            width: 320px;
+            min-height: 200px;
+            background-color: #ece9d8; 
+            border: 1px solid #000;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            z-index: 8000;
+        }
+        .title-bar {
+            background: linear-gradient(to right, #0a246a, #4a6ddc);
+            color: white;
+            padding: 3px 6px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            /* Thiết lập để có thể kéo (draggable) */
+            touch-action: none; 
+        }
+        .title-bar-buttons button {
+            width: 18px;
+            height: 18px;
+            border: 1px solid #000;
+            background-color: #ece9d8;
+            box-shadow: 1px 1px 0 #fff inset, -1px -1px 0 #555 inset;
+            font-size: 10px;
+            line-height: 1;
+            padding: 0;
+            margin-left: 2px;
+        }
+        .title-bar-buttons button:active {
+             box-shadow: -1px -1px 0 #fff inset, 1px 1px 0 #555 inset;
+        }
+        .window-content {
+            padding: 10px;
+            color: #000;
+            font-size: 14px;
+        }
+
+        /* Start Overlay */
+        #start-overlay {
+            position: absolute;
+            inset: 0;
+            background-color: rgba(10, 36, 106, 0.95); 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9000;
+            color: white;
         }
         
-        /* 5. Style cho Start Screen */
-        #start-screen {
-            background-color: rgba(31, 41, 55, 0.98); /* gray-800 opacity */
-            z-index: 9999;
+        /* Game Over Message (Dùng cho Win Screen và BSOD) */
+        #game-over-message {
+            position: absolute; /* Đảm bảo nó phủ toàn bộ desktop */
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            z-index: 9500; /* Cao hơn cửa sổ game */
+        }
+        
+        #game-over-message:not(.bsod-image-overlay) {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .xp-button-style {
+            padding: 8px 24px;
+            font-size: 1.25rem;
+            font-weight: bold;
+            background: #387834;
+            color: white;
+            border: 1px solid #285427;
+            border-radius: 4px;
+            box-shadow: 2px 2px 0 #fff inset, -2px -2px 0 #285427 inset;
+            transition: all 0.1s;
+        }
+        
+        .xp-button-style:active {
+             box-shadow: -2px -2px 0 #fff inset, 2px 2px 0 #285427 inset;
+        }
+
+        
+        /* Fragment Effect */
+        .fragment {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: #fca5a5;
+            border-radius: 2px;
+            pointer-events: none;
+            opacity: 1;
             transition: opacity 0.5s;
         }
     </style>
 </head>
-<!-- Body KHÔNG BẮT ĐẦU VỚI hide-cursor. Mặc định con trỏ hệ thống sẽ hiện ra. -->
-<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4" id="document-body">
-
-    <!-- custom-cursor bắt đầu với display: none -->
-    <img id="custom-cursor" 
-         src="https://tuanphong3108.github.io/mouse-game/cursor.png" 
-         alt="Custom Cursor"
-         onerror="this.src='https://placehold.co/40x40/fca5a5/1f2937?text=C'"
-         draggable="false" 
-         style="display: none;" 
-    >
-
-    <!-- Chuột FAKE dùng để làm animation VỠ (Khi thua) -->
-    <img id="fake-cursor-shatter" 
-         src="https://tuanphong3108.github.io/mouse-game/cursor.png" 
-         alt="Fake Cursor Shatter"
-         onerror="this.src='https://placehold.co/40x40/fca5a5/1f2937?text=C'"
-         draggable="false"
-    >
+<!-- FIX: Khởi tạo với show-cursor để hiện con trỏ hệ thống trên Start Screen -->
+<body class="min-h-screen show-cursor" id="document-body">
     
-    <!-- Khu vực Game chính -->
-    <div id="game-container" class="w-full max-w-4xl bg-gray-800 rounded-xl shadow-2xl p-6 md:p-10 border-4 border-red-500/50 relative overflow-hidden">
-        <div id="game-content">
-            <h1 class="text-3xl md:text-5xl font-extrabold text-red-400 mb-4 text-center">
-                Cuộc Chiến Con Trỏ
-            </h1>
-            <p class="text-gray-400 mb-4 text-center">
-                (Ném Boss để gây sát thương. Né đạn để không bị Game Over!)
-            </p>
+    <!-- Desktop Container (Game Area) -->
+    <div class="xp-desktop" id="desktop">
 
-            <!-- BOSS HP BAR -->
-            <div id="hp-container" class="mb-4">
-                <h2 class="text-xl font-bold text-red-300 mb-2 text-center">BOSS HP</h2>
-                <div class="w-full bg-gray-600 rounded-full h-4 relative">
-                    <div id="boss-hp-bar" class="bg-red-500 h-4 rounded-full transition-all duration-300" style="width: 100%"></div>
-                </div>
-            </div>
+        <!-- custom-cursor (phải là fixed) -->
+        <img id="custom-cursor" 
+             src="https://tuanphong3108.github.io/mouse-game/cursor.png" 
+             alt="Custom Cursor"
+             onerror="this.src='https://placehold.co/40x40/fca5a5/1f2937?text=C'"
+             draggable="false" 
+             style="display: none;" 
+        >
 
-            <!-- Boss Arena -->
-            <div id="boss-area" class="h-64 md:h-96 bg-gray-700 rounded-lg border-2 border-red-600/70 relative overflow-hidden">
-                <!-- Boss Element -->
-                <div id="boss" style="left: 50%; top: 50%;" draggable="false">
-                    👹
-                </div>
-                <!-- Vùng chứa các mảnh vỡ (Fragments) -->
-                <div id="shatter-container" class="absolute inset-0 pointer-events-none"></div>
-            </div>
+        <!-- Chuột FAKE dùng để làm animation VỠ (Khi thua) -->
+        <img id="fake-cursor-shatter" 
+             src="https://tuanphong3108.github.io/mouse-game/cursor.png" 
+             alt="Fake Cursor Shatter"
+             onerror="this.src='https://placehold.co/40x40/fca5a5/1f2937?text=C'"
+             draggable="false"
+             style="display: none;"
+        >
+        
+        <!-- Boss Element -->
+        <div id="boss" style="left: 50%; top: 50%; display: none;" draggable="false">
+            👹
+        </div>
+        
+        <!-- Vùng chứa các mảnh vỡ (Fragments) -->
+        <div id="shatter-container" class="absolute inset-0 pointer-events-none"></div>
 
-            <!-- Game Status Area -->
-            <div class="mt-4 flex flex-col md:flex-row justify-between items-center text-lg font-bold">
-                <span id="score-display" class="text-green-400 mb-2 md:mb-0">Time Alive: 0.0s</span>
-                <!-- Hiển thị HP của Cursor -->
-                <span id="cursor-hp-display" class="text-pink-400 flex items-center mb-2 md:mb-0">
-                    ❤️ 3
+        <!-- Cửa Sổ Game - "Cửa sổ Stat.exe" -->
+        <div id="phong-exe-window" class="rounded-sm flex flex-col" style="min-width: 320px; display: none;">
+            <div class="title-bar" id="window-title-bar">
+                <span class="text-sm">
+                    <!-- Icon Placeholder -->
+                    <span style="font-size: 14px; margin-right: 4px;">📊</span>
+                    Cửa sổ Stat.exe
                 </span>
-                <span id="instruction-display" class="text-yellow-400 text-center">CLICK & DRAG BOSS!</span>
+                <div class="title-bar-buttons flex items-center" id="title-bar-buttons">
+                    <button class="window-control">_</button>
+                    <button class="window-control">□</button>
+                    <button class="window-control bg-red-500 hover:bg-red-600 text-white font-bold">X</button>
+                </div>
+            </div>
+            <div class="window-content flex-grow">
+                <!-- BOSS HP BAR -->
+                <div id="hp-container" class="mb-4">
+                    <h2 class="text-xs font-bold text-red-700 mb-1">BOSS HP (<span id="boss-hp-display-text">200</span>)</h2>
+                    <div class="w-full bg-gray-400 rounded-full h-4 relative">
+                        <div id="boss-hp-bar" class="bg-red-500 h-4 rounded-full transition-all duration-300" style="width: 100%"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <!-- CURSOR HP -->
+                    <div class="flex items-center">
+                        <span class="text-xs font-bold text-pink-700 mr-2 whitespace-nowrap">CURSOR LIFE:</span>
+                        <!-- Đã đổi sang chỉ hiển thị 1 trái tim -->
+                        <span id="cursor-hp-display" class="text-pink-600 flex items-center font-bold text-base">❤️ 20</span>
+                    </div>
+
+                    <!-- SCORE -->
+                    <div class="flex items-center">
+                        <span class="text-xs font-bold text-green-700 mr-2 whitespace-nowrap">TIME:</span>
+                        <span id="score-display" class="text-green-600 font-bold text-base">0.0s</span>
+                    </div>
+                </div>
+                
+                <!-- THROW ENERGY BAR -->
+                <div class="mb-4">
+                    <div class="w-full flex items-center bg-gray-300 p-1 rounded-sm border border-blue-500/50">
+                        <span class="text-xs font-semibold text-blue-700 mr-2 whitespace-nowrap">ENERGY:</span>
+                        <div class="w-full bg-gray-500 rounded-sm h-3 relative">
+                            <div id="throw-energy-bar" class="bg-blue-500 h-3 rounded-sm transition-all duration-100" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <span id="instruction-display" class="block text-center text-blue-800 text-sm font-bold mt-2">CLICK & DRAG BOSS!</span>
+            </div>
+        </div>
+        
+        <!-- Game Over / Game Win Message (Chung) -->
+        <div id="game-over-message" class="bg-gray-900/95">
+            <!-- Nội dung sẽ được JS chèn vào -->
+        </div>
+
+        <!-- START SCREEN OVERLAY -->
+        <div id="start-overlay">
+            <h1 class="text-5xl font-extrabold mb-4 text-shadow-lg">
+                <span class="text-red-400">CURSOR</span> <span class="text-white">CLASH</span>
+            </h1>
+            <p class="text-xl font-semibold mb-8 text-yellow-300">
+                Hãy Quăng Boss Ra Khỏi Desktop!
+            </p>
+            <button id="play-button" class="xp-button-style">
+                ▶️ BẮT ĐẦU PHIÊN STAT.EXE
+            </button>
+            <p class="text-sm mt-8 text-gray-300">
+                (Phải thoát Fullscreen để dừng game)
+            </p>
+        </div>
+
+    </div>
+    
+    <!-- Taskbar Windows XP -->
+    <div class="xp-taskbar">
+        <!-- Nút Start -->
+        <div class="xp-start-button">
+            <img class="xp-start-logo" src="https://i.pinimg.com/736x/76/7f/1b/767f1b0bb047279481e5b102f7a0c557.jpg" alt="Windows XP Logo" 
+                 onerror="this.src='https://placehold.co/18x18/FFE363/0A246A?text=XP'">
+            Start
+        </div>
+        
+        <!-- Khu vực ứng dụng đang chạy -->
+        <div class="flex-grow flex items-center h-full">
+            <div class="h-full px-2 flex items-center text-white border-r border-l border-opacity-50 border-white border-solid bg-opacity-30 bg-white" id="running-app-indicator" style="display: none;">
+                <span class="text-xs">Cửa sổ Stat.exe - Đang Chạy</span>
             </div>
         </div>
 
-        <!-- Start Screen Message -->
-        <div id="start-screen" class="absolute inset-0 flex flex-col items-center justify-center rounded-xl">
-            <h2 class="text-6xl font-extrabold text-red-400 mb-6">
-                SẴN SÀNG CHƯA?
-            </h2>
-            <p class="text-xl text-gray-300 mb-10 text-center max-w-sm">
-                Boss sẽ tấn công ngay khi bạn nhấn BẮT ĐẦU. Hãy di chuyển con trỏ!
-            </p>
-            <button id="play-button" onclick="startGame()" class="px-10 py-4 bg-green-500 hover:bg-green-600 rounded-2xl font-black transition-all duration-300 shadow-2xl text-xl transform hover:scale-105">
-                BẮT ĐẦU (PLAY)
-            </button>
-        </div>
-
-
-        <!-- Game Over / Game Win Message (Chung) -->
-        <div id="game-over-message" class="absolute inset-0 bg-gray-900/95 flex flex-col items-center justify-center rounded-xl transition-opacity duration-500 opacity-0 pointer-events-none">
-            <h2 class="text-5xl font-extrabold text-red-500 mb-4 animate-pulse">
-                GAME OVER!
-            </h2>
-            <p class="text-2xl text-gray-300 mb-8">
-                Con Trỏ Chuột Đã Hy Sinh Oanh Liệt! 😭
-            </p>
-            <p class="text-xl text-gray-400 mb-8">
-                Bạn sống sót được: <span id="final-score" class="text-pink-400">0.0s</span>
-            </p>
-            <button onclick="resetGame()" class="px-8 py-3 bg-green-500 hover:bg-green-600 rounded-xl font-bold transition-all duration-300 shadow-xl text-lg">
-                Chơi Lại
-            </button>
+        <!-- Khay hệ thống -->
+        <div class="flex items-center space-x-2 px-3 h-full border-l border-white border-opacity-40" style="background-color: #3e6dcf;">
+            <span class="text-white text-xs" id="currentTime">1:12 PM</span>
         </div>
     </div>
 
@@ -251,26 +442,44 @@
         const gameOverMessage = document.getElementById('game-over-message');
         const documentBody = document.getElementById('document-body');
         const boss = document.getElementById('boss');
-        const bossArea = document.getElementById('boss-area');
         const shatterContainer = document.getElementById('shatter-container');
         const scoreDisplay = document.getElementById('score-display');
-        const finalScore = document.getElementById('final-score');
         const bossHpBar = document.getElementById('boss-hp-bar'); 
-        const startScreen = document.getElementById('start-screen'); 
+        const bossHpDisplayText = document.getElementById('boss-hp-display-text');
         const cursorHpDisplay = document.getElementById('cursor-hp-display'); 
         const instructionDisplay = document.getElementById('instruction-display');
+        const throwEnergyBar = document.getElementById('throw-energy-bar'); 
+        const clockElement = document.getElementById('currentTime');
+        const phongExeWindow = document.getElementById('phong-exe-window');
+        const windowTitleBar = document.getElementById('window-title-bar');
+        const startOverlay = document.getElementById('start-overlay');
+        const playButton = document.getElementById('play-button');
+        const titleBarButtons = document.getElementById('title-bar-buttons');
+        const runningAppIndicator = document.getElementById('running-app-indicator');
+        
+        // --- CURSOR IMAGES CONSTANTS ---
+        const CURSOR_DEFAULT = 'https://tuanphong3108.github.io/mouse-game/cursor.png';
+        const CURSOR_MOVE = 'https://tuanphong3108.github.io/mouse-game/move.png';
+        const CURSOR_LINK = 'https://tuanphong3108.github.io/mouse-game/link.png';
 
-        const BOSS_MAX_HP = 100;
-        const CURSOR_MAX_HP = 3; 
-        const INVULNERABILITY_TIME = 1500; // 1.5 giây bất tử sau khi bị trúng đạn
 
+        // === CÂN BẰNG GAME ===
+        const BOSS_MAX_HP = 200; 
+        const CURSOR_MAX_HP = 20; 
+        const COLLISION_DAMAGE = 20; // Sát thương cố định khi Boss va chạm vào tường/cửa sổ
+        const TASKBAR_HEIGHT = 30; 
+        const INVULNERABILITY_TIME = 1500; 
+        
+        // FIX MỚI: Cooldown sát thương va chạm boss (0.5 giây)
+        const BOSS_COLLISION_COOLDOWN_MS = 500;
+        
         let bossHP = BOSS_MAX_HP;
         let cursorHP = CURSOR_MAX_HP; 
-        let isInvulnerable = false; 
-        let gameState = 'ready'; 
+        let isInvulnerable = false; // Player invulnerability
+        let isInvulnerableBoss = false; // Boss invulnerability (when running away)
+        let isBossDamageCooldown = false; // FIX: Flag để ngăn sát thương va chạm liên tục
+        let gameState = 'waiting'; 
         let projectiles = [];
-        let bossTargetX = 0;
-        let bossTargetY = 0;
         let score = 0;
         let lastTime = 0;
 
@@ -283,95 +492,221 @@
         
         const BOSS_SIZE = 80;
         const PROJECTILE_SIZE = 15;
+        const FRICTION_MULTIPLIER = 0.95; 
         
-        // [CÂN BẰNG GAME & ĐỘ KHÓ]
-        const MIN_IMPACT_VELOCITY = 0.5; 
-        // PHONG PATCH v2.0: Giảm hệ số sát thương ném xuống rất thấp
-        const DAMAGE_MULTIPLIER = 0.08; 
-        
-        // [ENRAGED MODE CONSTANTS]
-        const ENRAGED_HP_THRESHOLD = BOSS_MAX_HP / 2; // 50 HP
-        const ENRAGED_PROJECTILE_SPEED = 0.45; // px per ms (Nhanh gấp đôi)
-        const ENRAGED_PROJECTILE_SIZE = 25; // Lớn hơn
-        // PHONG PATCH v3.0: Tốc độ hồi máu khi Boss phẫn nộ (0.15 HP/s)
-        const ENRAGED_HEAL_RATE = 0.15; 
-        let isEnraged = false; // Trạng thái Boss Phẫn Nộ
-
-        // PHONG PATCH v3.0: THROW COOLDOWN LOGIC
-        const THROW_COOLDOWN_MS = 500; // 0.5 giây cooldown giữa các lần kéo Boss
+        // [ENERGY/COOLDOWN CONSTANTS]
+        const THROW_COOLDOWN_MS = 300; 
         let canDragBoss = true; 
+        const MAX_ENERGY = 100;
+        const ENERGY_COST_PER_THROW = 30; 
+        const ENERGY_REGEN_RATE = 20; 
+        let throwEnergy = MAX_ENERGY;
 
-        // Khởi tạo biến cho độ khó
-        let PROJECTILE_FIRING_RATE = 1500; // ms (Thời gian chờ giữa 2 lần bắn)
-        let PROJECTILE_SPEED = 0.2; // px per ms (Tốc độ đạn)
-        let currentLevel = 1; // Level hiện tại
+        // [ENRAGED MODE CONSTANTS]
+        const ENRAGED_HP_THRESHOLD = BOSS_MAX_HP / 2;
+        const ENRAGED_PROJECTILE_SPEED = 0.45;
+        const ENRAGED_PROJECTILE_SIZE = 25;
+        const ENRAGED_HEAL_RATE = 0.15;
+        let isEnraged = false; 
+
+        // [BOSS AI CONSTANTS]
+        let bossAIInterval;
+        const BOSS_AI_MOVE_RATE_MS = 3000;
+        const BOSS_AI_SPEED = 0.05; // Tốc độ di chuyển tự động (pixels/ms)
+
+        let PROJECTILE_FIRING_RATE = 1500; 
+        let PROJECTILE_SPEED = 0.2; 
+        let currentLevel = 1; 
         let projectileInterval; 
         
-        // Ngăn chặn menu chuột phải (Context Menu) trên toàn bộ trang
-        document.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
+        // Vị trí cửa sổ XP
+        let isWindowDragging = false;
+        let offsetX, offsetY;
+
+        // --- CURSOR MANIPULATION FUNCTIONS ---
+        function setCursorImage(url) {
+            customCursor.src = url;
+        }
+
+        function handleCursorOver(type) {
+            if (gameState !== 'playing') return;
+            switch(type) {
+                case 'move':
+                    setCursorImage(CURSOR_MOVE);
+                    break;
+                case 'link':
+                    setCursorImage(CURSOR_LINK);
+                    break;
+                case 'default':
+                    setCursorImage(CURSOR_DEFAULT);
+                    break;
+            }
+        }
+        
+        // --- ATTACH CURSOR LISTENERS (Sau khi game bắt đầu) ---
+        
+        // 1. Boss (Move/Default)
+        boss.addEventListener('mouseover', () => handleCursorOver('move'));
+        boss.addEventListener('mouseout', () => handleCursorOver('default'));
+        
+        // 2. Window Title Bar (Move/Default)
+        windowTitleBar.addEventListener('mousedown', () => handleCursorOver('move'));
+        windowTitleBar.addEventListener('mouseout', () => handleCursorOver('default'));
+
+        // 3. Play Button (Link/Default)
+        playButton.addEventListener('mouseover', () => handleCursorOver('link'));
+        playButton.addEventListener('mouseout', () => handleCursorOver('default'));
+        
+        // 4. Title Bar Buttons (Link/Default)
+        titleBarButtons.querySelectorAll('.window-control').forEach(button => {
+            button.addEventListener('mouseover', () => handleCursorOver('link'));
+            button.addEventListener('mouseout', () => handleCursorOver('default'));
         });
 
 
         // --- GAME CONTROL FUNCTIONS ---
-
-        // Hàm khởi động Game: Ẩn con trỏ hệ thống và hiển thị con trỏ custom
-        function startGame() {
-            if (gameState !== 'ready') return;
-            gameState = 'playing';
-            startScreen.style.opacity = '0';
-            startScreen.style.pointerEvents = 'none';
-            
-            // 1. Ẩn con trỏ hệ thống (vì đã có con trỏ custom)
-            documentBody.classList.remove('show-cursor');
-            documentBody.classList.add('hide-cursor'); 
-
-            // 2. Hiển thị con trỏ custom
-            customCursor.style.display = 'block';
-
-            // Bắt đầu bắn đạn khi ấn Play (dùng biến rate)
-            projectileInterval = setInterval(fireProjectile, PROJECTILE_FIRING_RATE);
-            
-            // Khởi tạo thời gian bắt đầu
-            lastTime = performance.now();
+        
+        function setBossDamageCooldown() {
+            if (isBossDamageCooldown) return;
+            isBossDamageCooldown = true;
+            setTimeout(() => {
+                isBossDamageCooldown = false;
+            }, BOSS_COLLISION_COOLDOWN_MS);
         }
+
+        function requestFullscreen() {
+             const element = document.documentElement;
+             if (element.requestFullscreen) {
+                 element.requestFullscreen();
+             } else if (element.mozRequestFullScreen) {
+                 element.mozRequestFullScreen();
+             } else if (element.webkitRequestFullscreen) { 
+                 element.webkitRequestFullscreen();
+             } else if (element.msRequestFullscreen) { 
+                 element.msRequestFullscreen();
+             }
+        }
+        
+        function startGame() {
+            if (gameState !== 'waiting') return;
+            gameState = 'playing';
+
+            requestFullscreen();
+
+            startOverlay.style.display = 'none';
+            boss.style.display = 'block';
+            phongExeWindow.style.display = 'flex';
+            runningAppIndicator.style.display = 'flex';
+
+            projectileInterval = setInterval(fireProjectile, PROJECTILE_FIRING_RATE);
+            bossAIInterval = setInterval(bossMoveRandomly, BOSS_AI_MOVE_RATE_MS); // Bật AI
+            
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+
+            // Thiết lập vị trí Boss ban đầu
+            boss.style.left = `${(window.innerWidth - BOSS_SIZE) / 2}px`;
+            boss.style.top = `${(window.innerHeight - TASKBAR_HEIGHT - BOSS_SIZE) / 2}px`;
+            
+            // BẮT ĐẦU GAME: Ẩn con trỏ hệ thống và Hiện con trỏ custom
+            documentBody.classList.remove('show-cursor');
+            documentBody.classList.add('hide-cursor');
+            customCursor.style.display = 'block'; 
+            setCursorImage(CURSOR_DEFAULT); // Set lại về con trỏ mặc định game
+        }
+
+        playButton.addEventListener('click', startGame);
+
+        // Ngăn chặn menu chuột phải
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+        
+        // --- WINDOWS XP UTILS ---
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            clockElement.textContent = timeString;
+        }
+        updateClock();
+        setInterval(updateClock, 10000); 
+
+        function updateEnergyBar() {
+            const percent = (throwEnergy / MAX_ENERGY) * 100;
+            throwEnergyBar.style.width = `${percent}%`;
+            
+            if (throwEnergy < ENERGY_COST_PER_THROW || !canDragBoss) {
+                 throwEnergyBar.classList.remove('bg-blue-500');
+                 throwEnergyBar.classList.add('bg-red-500');
+                 if (!isInvulnerableBoss && !isBossDamageCooldown) boss.classList.add('boss-cooldown');
+            } else {
+                 throwEnergyBar.classList.remove('bg-red-500');
+                 throwEnergyBar.classList.add('bg-blue-500');
+                 boss.classList.remove('boss-cooldown');
+            }
+        }
+        
+        // --- DRAGGING LOGIC CHO CỬA SỔ XP ---
+        windowTitleBar.addEventListener('mousedown', (e) => {
+            if (gameState !== 'playing') return;
+            isWindowDragging = true;
+            offsetX = e.clientX - phongExeWindow.offsetLeft;
+            offsetY = e.clientY - phongExeWindow.offsetTop;
+            
+            // Đảm bảo con trỏ move hiển thị khi kéo cửa sổ
+            handleCursorOver('move'); 
+        });
+        
+        documentBody.addEventListener('mouseup', () => {
+            isWindowDragging = false;
+            // Đảm bảo con trỏ quay lại default
+            if (gameState === 'playing') handleCursorOver('default');
+        });
+
 
         // 1. Theo dõi chuột hệ thống và di chuyển chuột custom
         documentBody.addEventListener('mousemove', (e) => {
-            // Khi game over/win thì không cần di chuyển custom cursor nữa
-            if (gameState === 'gameover' || gameState === 'gamewin') return;
-            
-            // Di chuyển con trỏ custom (chỉ hiển thị khi gameState là 'playing')
-            if (gameState === 'playing') {
-                customCursor.style.left = `${e.clientX}px`;
-                customCursor.style.top = `${e.clientY}px`;
+            if (gameState === 'gameover' || gameState === 'gamewin' || gameState === 'waiting') {
+                // Nếu game kết thúc/chưa bắt đầu, không di chuyển con trỏ custom
+                return;
             }
             
-            if (gameState === 'playing' && isDragging) {
-                const bossRect = bossArea.getBoundingClientRect();
-                const BossAreaWidth = bossRect.width - BOSS_SIZE;
-                const BossAreaHeight = bossRect.height - BOSS_SIZE;
+            customCursor.style.left = `${e.clientX}px`;
+            customCursor.style.top = `${e.clientY}px`;
+            
+            // Logic Kéo CỬA SỔ
+            if (isWindowDragging) {
+                let x = e.clientX - offsetX;
+                let y = e.clientY - offsetY;
                 
+                // Giới hạn cửa sổ trong Desktop
+                x = Math.max(0, Math.min(x, window.innerWidth - phongExeWindow.offsetWidth));
+                y = Math.max(0, Math.min(y, window.innerHeight - TASKBAR_HEIGHT - phongExeWindow.offsetHeight));
+                
+                phongExeWindow.style.left = `${x}px`;
+                phongExeWindow.style.top = `${y}px`;
+                return; 
+            }
+
+            // Logic Kéo BOSS
+            if (isDragging) {
                 const dx = e.clientX - lastCursorX;
                 const dy = e.clientY - lastCursorY;
                 const currentTime = performance.now();
                 const dt = currentTime - lastTimeDrag;
 
-                // Logic SNAPPING: Tính toán vị trí Boss (rel to bossArea)
-                let targetX = e.clientX - bossRect.left - (BOSS_SIZE / 2); 
-                let targetY = e.clientY - bossRect.top - (BOSS_SIZE / 2);
-                
-                // Cập nhật vận tốc Boss (tính bằng pixel/ms)
-                // Hệ số phóng đại lực ném
-                const VELOCITY_SCALE = 2.5; 
+                // Tính toán vận tốc (pixel/ms)
+                const VELOCITY_SCALE = 1.0; 
                 if (dt > 0) {
                     bossVX = (dx / dt) * VELOCITY_SCALE; 
                     bossVY = (dy / dt) * VELOCITY_SCALE;
                 }
                 
-                // Giới hạn Boss trong Boss Area
-                targetX = Math.max(0, Math.min(targetX, BossAreaWidth));
-                targetY = Math.max(0, Math.min(targetY, BossAreaHeight));
+                let targetX = parseFloat(boss.style.left) + dx;
+                let targetY = parseFloat(boss.style.top) + dy;
+                
+                targetX = Math.max(0, Math.min(targetX, window.innerWidth - BOSS_SIZE));
+                targetY = Math.max(0, Math.min(targetY, window.innerHeight - TASKBAR_HEIGHT - BOSS_SIZE));
 
                 boss.style.left = `${targetX}px`;
                 boss.style.top = `${targetY}px`;
@@ -383,152 +718,241 @@
             lastCursorY = e.clientY;
         });
 
-        // 2. Boss Dragging Handlers
-        boss.addEventListener('mousedown', (e) => {
-            if (gameState !== 'playing' || bossHP <= 0) return;
-            
-            // PHONG PATCH v3.0: KIỂM TRA COOLDOWN
-            if (!canDragBoss) {
-                // Hiển thị visual feedback nếu không thể kéo
-                instructionDisplay.textContent = 'GIÁP NÉM: Đang hồi chiêu...';
-                boss.classList.add('boss-cooldown');
-                setTimeout(() => {
-                    boss.classList.remove('boss-cooldown');
-                    if (!isEnraged) instructionDisplay.textContent = 'CLICK & DRAG BOSS!';
-                }, 500); 
-                return;
-            }
-            
-            // Reset cooldown status and start dragging
-            canDragBoss = false;
-            isDragging = true;
-            bossVX = 0;
-            bossVY = 0;
-            boss.style.transition = 'none'; 
-            lastTimeDrag = performance.now();
-            
-            lastCursorX = e.clientX;
-            lastCursorY = e.clientY;
-        });
-
         documentBody.addEventListener('mouseup', () => {
             if (isDragging) {
                 isDragging = false;
-                boss.style.transition = 'left 2s ease-in-out, top 2s ease-in-out';
+
+                // TIÊU HAO NĂNG LƯỢNG KHI QUĂNG
+                throwEnergy -= ENERGY_COST_PER_THROW;
+                if (throwEnergy < 0) throwEnergy = 0;
+                updateEnergyBar();
+
+                // KÍCH HOẠT COOLDOWN
+                instructionDisplay.textContent = `COOLDOWN/ENERGY: Đang hồi chiêu`;
                 
-                // PHONG PATCH v3.0: KÍCH HOẠT COOLDOWN (0.5s)
-                instructionDisplay.textContent = `GIÁP NÉM: ${THROW_COOLDOWN_MS/1000}s Cooldown`;
-                boss.classList.add('boss-cooldown');
+                // Đảm bảo con trỏ quay lại trạng thái trước đó
+                setCursorImage(CURSOR_DEFAULT);
                 
                 setTimeout(() => {
                     canDragBoss = true;
-                    boss.classList.remove('boss-cooldown');
-                    if (!isEnraged) {
-                        instructionDisplay.textContent = 'CLICK & DRAG BOSS!';
-                    } else {
-                        instructionDisplay.textContent = 'BOSS PHẪN NỘ! CẨN THẬN ĐẠN ĐÔI & HỒI MÁU!';
+                    if (throwEnergy >= ENERGY_COST_PER_THROW) {
+                        instructionDisplay.textContent = isEnraged ? 'BOSS PHẪN NỘ! CẨN THẬN ĐẠN ĐÔI & HỒI MÁU!' : 'CLICK & DRAG BOSS!';
                     }
                 }, THROW_COOLDOWN_MS);
             }
         });
 
 
-        // 3. Cập nhật vị trí Boss 
+        // 2. Boss Dragging Handlers
+        boss.addEventListener('mousedown', (e) => {
+            // KHÔNG kéo được nếu boss đang chạy trốn
+            if (gameState !== 'playing' || bossHP <= 0 || isWindowDragging || isInvulnerableBoss) return; 
+            
+            if (throwEnergy < ENERGY_COST_PER_THROW || !canDragBoss) {
+                instructionDisplay.textContent = 'HẾT ENERGY HOẶC ĐANG COOLDOWN!';
+                setTimeout(() => {
+                    if (throwEnergy >= ENERGY_COST_PER_THROW) instructionDisplay.textContent = 'CLICK & DRAG BOSS!';
+                }, 500); 
+                return;
+            }
+
+            canDragBoss = false;
+            isDragging = true;
+            
+            bossVX = 0;
+            bossVY = 0;
+            
+            instructionDisplay.textContent = 'ĐANG GIỮ BOSS... QUĂNG!';
+
+            lastTimeDrag = performance.now();
+            lastCursorX = e.clientX;
+            lastCursorY = e.clientY;
+        });
+
+        // 3. Logic Boss Tự Di Chuyển (AI)
+        function bossMoveRandomly() {
+            // Boss chỉ di chuyển nếu không đang bị kéo hoặc không đang chạy trốn
+            if (gameState !== 'playing' || isDragging || isInvulnerableBoss) return;
+            
+            // Tính toán vị trí ngẫu nhiên
+            const targetX = Math.random() * (window.innerWidth - BOSS_SIZE);
+            const targetY = Math.random() * (window.innerHeight - TASKBAR_HEIGHT - BOSS_SIZE);
+            
+            const currentX = parseFloat(boss.style.left);
+            const currentY = parseFloat(boss.style.top);
+
+            const dx = targetX - currentX;
+            const dy = targetY - currentY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Thiết lập vận tốc nhỏ (AI speed)
+            const BOSS_AI_SPEED_CURRENT = isEnraged ? 0.08 : BOSS_AI_SPEED;
+            bossVX = (dx / distance) * BOSS_AI_SPEED_CURRENT;
+            bossVY = (dy / distance) * BOSS_AI_SPEED_CURRENT;
+            
+            // Giảm tốc độ của AI khi sắp đến đích
+            setTimeout(() => {
+                bossVX *= 0.5;
+                bossVY *= 0.5;
+            }, BOSS_AI_MOVE_RATE_MS * 0.8);
+        }
+
+
+        // 4. Boss Run Away Logic (Khi bị đập vào cửa sổ)
+        function bossRunAway() {
+            if (isInvulnerableBoss || bossHP <= 0) return;
+            
+            // Ngừng kéo ngay lập tức nếu đang kéo
+            if (isDragging) {
+                 isDragging = false;
+                 // Hồi lại energy khi drag bị hủy bỏ do Boss chạy trốn
+                 throwEnergy += ENERGY_COST_PER_THROW;
+                 throwEnergy = Math.min(throwEnergy, MAX_ENERGY);
+                 updateEnergyBar();
+            }
+
+            isInvulnerableBoss = true;
+            
+            // Tạm dừng AI
+            clearInterval(bossAIInterval);
+            
+            // Tìm vị trí ngẫu nhiên
+            const targetX = Math.random() * (window.innerWidth - BOSS_SIZE);
+            const targetY = Math.random() * (window.innerHeight - TASKBAR_HEIGHT - BOSS_SIZE);
+            
+            const currentX = parseFloat(boss.style.left);
+            const currentY = parseFloat(boss.style.top);
+
+            const dx = targetX - currentX;
+            const dy = targetY - currentY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            const RUN_SPEED = 0.8; // Tốc độ chạy rất nhanh (pixels/ms)
+            bossVX = (dx / distance) * RUN_SPEED;
+            bossVY = (dy / distance) * RUN_SPEED;
+            
+            // Visual feedback
+            boss.classList.add('boss-running');
+            instructionDisplay.textContent = 'BOSS BỊ ĐÁNH TRÚNG! ĐANG TẨU THOÁT...';
+
+            // Dừng chạy sau 1 giây
+            setTimeout(() => {
+                isInvulnerableBoss = false;
+                boss.classList.remove('boss-running');
+                
+                // Giảm tốc đột ngột sau khi dừng chạy
+                bossVX *= 0.1; 
+                bossVY *= 0.1;
+                
+                // Khởi động lại AI
+                bossAIInterval = setInterval(bossMoveRandomly, BOSS_AI_MOVE_RATE_MS);
+                
+                instructionDisplay.textContent = isEnraged ? 'BOSS PHẪN NỘ! CẨN THẬN ĐẠN ĐÔI & HỒI MÁU!' : 'CLICK & DRAG BOSS!';
+                
+            }, 1000); 
+        }
+
+
+        // 5. Cập nhật vị trí Boss (Vật Lý Dừng/Va chạm)
         function updateBoss(deltaTime) {
             if (gameState !== 'playing' || bossHP <= 0) return; 
             
-            const bossRect = bossArea.getBoundingClientRect();
-            const BossAreaWidth = bossRect.width - BOSS_SIZE;
-            const BossAreaHeight = bossRect.height - BOSS_SIZE;
+            const desktopWidth = window.innerWidth;
+            const desktopHeight = window.innerHeight - TASKBAR_HEIGHT;
 
             let currentX = parseFloat(boss.style.left);
             let currentY = parseFloat(boss.style.top);
             
-            if (isNaN(currentX)) currentX = BossAreaWidth / 2;
-            if (isNaN(currentY)) currentY = BossAreaHeight / 2;
+            // Áp dụng vận tốc ném / AI và giảm tốc (Friction)
+            currentX += bossVX * deltaTime;
+            currentY += bossVY * deltaTime;
 
-            if (!isDragging) {
-                // Áp dụng vận tốc ném và giảm tốc (Friction/Drag)
-                currentX += bossVX * deltaTime;
-                currentY += bossVY * deltaTime;
-
-                bossVX *= 0.99; 
-                bossVY *= 0.99;
-                
-                // Di chuyển Boss tự động 
-                if (Math.abs(bossVX) < 0.05 && Math.abs(bossVY) < 0.05) {
-                    const dx = bossTargetX - currentX;
-                    const dy = bossTargetY - currentY;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-
-                    if (distance > 1) {
-                        const step = Math.min(distance, 0.05 * deltaTime); 
-                        currentX += (dx / distance) * step;
-                        currentY += (dy / distance) * step;
-                    }
-                    
-                    if (Math.random() < deltaTime / 3000) { 
-                        bossTargetX = Math.random() * BossAreaWidth;
-                        bossTargetY = Math.random() * BossAreaHeight;
-                    }
-                }
-            }
-
-
-            // 4. Boundary check and Damage on impact (Ném vào tường)
-            let damaged = false;
+            bossVX *= FRICTION_MULTIPLIER; 
+            bossVY *= FRICTION_MULTIPLIER;
             
-            // Check X boundary
-            if (currentX < 0) {
-                currentX = 0;
-                if (Math.abs(bossVX) > MIN_IMPACT_VELOCITY) { 
-                    damageBoss(Math.abs(bossVX) * DAMAGE_MULTIPLIER); 
-                    bossVX *= -0.7; 
-                    damaged = true;
-                } else {
-                    bossVX = 0;
+            // --- KIỂM TRA VA CHẠM CỬA SỔ VÀ TƯỜNG ---
+            
+            const wRect = phongExeWindow.getBoundingClientRect();
+            let bRect = { 
+                left: currentX, 
+                right: currentX + BOSS_SIZE, 
+                top: currentY, 
+                bottom: currentY + BOSS_SIZE,
+                width: BOSS_SIZE,
+                height: BOSS_SIZE
+            };
+            
+            let stopped = false;
+            let hitBoundary = false;
+            
+            // 5a. Collision with XP Window (Cửa sổ Stat.exe)
+            if (checkCollision(bRect, wRect, 0)) { 
+                if (!isInvulnerableBoss && !isBossDamageCooldown) {
+                    damageBoss(COLLISION_DAMAGE); // Áp dụng sát thương cố định 20HP
+                    bossRunAway(); // Boss chạy trốn ngay lập tức
+                    setBossDamageCooldown(); // Kích hoạt Cooldown sát thương
+                    return; // Thoát ngay, boss đang chạy trốn, không cần xử lý va chạm khác
                 }
-            } else if (currentX > BossAreaWidth) {
-                currentX = BossAreaWidth;
-                if (Math.abs(bossVX) > MIN_IMPACT_VELOCITY) {
-                    damageBoss(Math.abs(bossVX) * DAMAGE_MULTIPLIER);
-                    bossVX *= -0.7; 
-                    damaged = true;
-                } else {
-                    bossVX = 0;
-                }
+                // Nếu đang trong chế độ chạy trốn, vẫn cho phép xuyên qua cửa sổ tạm thời
             }
 
-            // Check Y boundary
-            if (currentY < 0) {
-                currentY = 0;
-                if (Math.abs(bossVY) > MIN_IMPACT_VELOCITY) {
-                    damageBoss(Math.abs(bossVY) * DAMAGE_MULTIPLIER);
-                    bossVY *= -0.7; 
-                    damaged = true;
-                } else {
-                    bossVY = 0;
+            // 5b. Collision with Desktop Boundaries (Tường)
+            
+            if (!isInvulnerableBoss) { // Chỉ tính va chạm tường và sát thương khi KHÔNG chạy trốn
+                
+                // Check X boundary
+                if (currentX < 0) {
+                    currentX = 0;
+                    if (!isBossDamageCooldown) {
+                       damageBoss(COLLISION_DAMAGE); 
+                       setBossDamageCooldown(); // Kích hoạt Cooldown
+                    }
+                    bossVX = 0; 
+                    stopped = true;
+                    hitBoundary = true;
+                } else if (currentX > desktopWidth - BOSS_SIZE) {
+                    currentX = desktopWidth - BOSS_SIZE;
+                    if (!isBossDamageCooldown) {
+                        damageBoss(COLLISION_DAMAGE); 
+                        setBossDamageCooldown(); // Kích hoạt Cooldown
+                    }
+                    bossVX = 0; 
+                    stopped = true;
+                    hitBoundary = true;
                 }
-            } else if (currentY > BossAreaHeight) {
-                currentY = BossAreaHeight;
-                if (Math.abs(bossVY) > MIN_IMPACT_VELOCITY) {
-                    damageBoss(Math.abs(bossVY) * DAMAGE_MULTIPLIER);
-                    bossVY *= -0.7; 
-                    damaged = true;
-                } else {
-                    bossVY = 0;
+
+                // Check Y boundary
+                if (currentY < 0) {
+                    currentY = 0;
+                    if (!isBossDamageCooldown) {
+                        damageBoss(COLLISION_DAMAGE); 
+                        setBossDamageCooldown(); // Kích hoạt Cooldown
+                    }
+                    bossVY = 0; 
+                    stopped = true;
+                    hitBoundary = true;
+                } else if (currentY > desktopHeight - BOSS_SIZE) {
+                    currentY = desktopHeight - BOSS_SIZE;
+                    if (!isBossDamageCooldown) {
+                        damageBoss(COLLISION_DAMAGE); 
+                        setBossDamageCooldown(); // Kích hoạt Cooldown
+                    }
+                    bossVY = 0; 
+                    stopped = true;
+                    hitBoundary = true;
                 }
+            } else {
+                 // Khi đang chạy trốn, Boss có thể tạm thời vượt qua tường (không bị tính damage, không dừng lại)
+                 // Nhưng vẫn cố gắng giới hạn trong viewport để không bị mất
+                 currentX = Math.max(0, Math.min(currentX, desktopWidth - BOSS_SIZE));
+                 currentY = Math.max(0, Math.min(currentY, desktopHeight - BOSS_SIZE));
             }
             
-            if(damaged) {
-                boss.style.transition = 'none';
-                boss.style.backgroundColor = '#f87171'; // Red-300
-                document.getElementById('game-container').classList.add('shake-screen');
-                
+            if(hitBoundary && !isBossDamageCooldown) { 
+                // Hiệu ứng nhấp nháy khi bị đập
+                boss.style.backgroundColor = '#f87171';
                 setTimeout(() => { 
-                    document.getElementById('game-container').classList.remove('shake-screen');
-                    if (!isDragging) boss.style.transition = 'left 2s ease-in-out, top 2s ease-in-out'; 
-                    boss.style.backgroundColor = 'rgba(239, 68, 68, 0.5)'; // Màu gốc 
+                    boss.style.backgroundColor = isEnraged ? 'rgba(239, 68, 68, 0.5)' : 'rgba(239, 68, 68, 0.5)';
                 }, 100);
             }
 
@@ -536,10 +960,10 @@
             boss.style.top = `${currentY}px`;
         }
 
-
-        // 5. Quản lý Đạn (Projectile)
+        // 6. Quản lý Đạn (Projectile - Giữ nguyên logic)
         function fireProjectile() {
-            if (gameState !== 'playing' || bossHP <= 0 || isDragging) return; 
+            // Boss không bắn khi đang bị kéo hoặc đang chạy trốn
+            if (gameState !== 'playing' || bossHP <= 0 || isDragging || isInvulnerableBoss) return; 
 
             const bRect = boss.getBoundingClientRect();
             const cRect = customCursor.getBoundingClientRect();
@@ -561,7 +985,6 @@
 
             const projectileElement = document.createElement('div');
             projectileElement.className = 'projectile';
-            projectileElement.style.position = 'fixed'; 
             projectileElement.style.left = `${startX - PROJECTILE_SIZE / 2}px`;
             projectileElement.style.top = `${startY - PROJECTILE_SIZE / 2}px`;
             documentBody.appendChild(projectileElement);
@@ -576,16 +999,14 @@
                 isEnraged: false
             });
             
-            // --- ENRAGED PROJECTILE (Nếu Boss Phẫn Nộ) ---
+            // --- ENRAGED PROJECTILE ---
             if (isEnraged) {
-                // Tái sử dụng tính toán vận tốc nhưng với tốc độ/kích thước khác
                 const enragedSpeed = ENRAGED_PROJECTILE_SPEED;
                 const enragedVx = (dx / distance) * enragedSpeed;
                 const enragedVy = (dy / distance) * enragedSpeed;
 
                 const enragedElement = document.createElement('div');
-                enragedElement.className = 'enraged-projectile'; // Dùng class mới
-                enragedElement.style.position = 'fixed'; 
+                enragedElement.className = 'enraged-projectile'; 
                 enragedElement.style.left = `${startX - ENRAGED_PROJECTILE_SIZE / 2}px`;
                 enragedElement.style.top = `${startY - ENRAGED_PROJECTILE_SIZE / 2}px`;
                 documentBody.appendChild(enragedElement);
@@ -602,7 +1023,7 @@
             }
         }
 
-        // 6. Cập nhật vị trí đạn và kiểm tra va chạm
+        // 7. Cập nhật vị trí đạn và kiểm tra va chạm (Fixed/Absolute positioning)
         function updateProjectiles(deltaTime) {
             const cRect = customCursor.getBoundingClientRect();
             const newProjectiles = [];
@@ -615,17 +1036,13 @@
                 p.element.style.left = `${p.x}px`;
                 p.element.style.top = `${p.y}px`;
 
-                // Kiểm tra va chạm với Chuột (margin được điều chỉnh theo kích thước)
                 const collisionMargin = p.isEnraged ? 5 : 10; 
                 
                 if (!isInvulnerable && checkCollision(cRect, p.element.getBoundingClientRect(), collisionMargin)) {
-                    damageCursor(); // Gây sát thương cho chuột
-                    p.element.remove(); // Xóa đạn đã chạm
-                    
-                    // Nếu Chuột đã Game Over, dừng xử lý
+                    damageCursor();
+                    p.element.remove();
                     if (gameState !== 'playing') return; 
-
-                    continue; // Bỏ qua phần thêm vào newProjectiles vì đạn đã bị xóa
+                    continue;
                 }
 
                 // Giữ lại đạn còn trong màn hình
@@ -638,7 +1055,7 @@
             projectiles = newProjectiles;
         }
 
-        // 7. Kiểm tra va chạm
+        // 8. Kiểm tra va chạm (Bounding box check)
         function checkCollision(rect1, rect2, margin = 0) {
             return (
                 rect1.left < rect2.right - margin &&
@@ -648,11 +1065,11 @@
             );
         }
 
-        // 8. Cập nhật HP Boss
+        // 9. Cập nhật HP Boss 
         function damageBoss(amount) {
             if (bossHP <= 0 || gameState !== 'playing') return;
             
-            bossHP -= amount;
+            bossHP -= amount; 
             
             if (bossHP < 0) bossHP = 0;
             
@@ -666,6 +1083,7 @@
         function updateHPBar() {
              const percent = (bossHP / BOSS_MAX_HP) * 100;
              bossHpBar.style.width = `${percent}%`;
+             bossHpDisplayText.textContent = bossHP.toFixed(0); // Hiển thị số nguyên
              
              // Cập nhật màu sắc HP Bar và kiểm tra Enraged Mode
              if (percent < 20) {
@@ -678,32 +1096,28 @@
                  // KÍCH HOẠT ENRAGED MODE
                  if (!isEnraged) {
                      isEnraged = true;
-                     boss.textContent = '😈'; // Biểu cảm Boss khi Enraged
+                     boss.textContent = '😈';
                      instructionDisplay.textContent = 'BOSS PHẪN NỘ! CẨN THẬN ĐẠN ĐÔI & HỒI MÁU!';
-                     console.log('BOSS ENRAGED! Passive Healing Active.');
                  }
              } else {
                  bossHpBar.classList.remove('bg-orange-500', 'bg-red-700/80');
                  bossHpBar.classList.add('bg-red-500');
                  
-                 // TẮT ENRAGED MODE (Nếu Boss hồi máu vượt 50% - nếu có cơ chế hồi máu mạnh)
+                 // TẮT ENRAGED MODE
                  if (isEnraged) {
                     isEnraged = false;
                     boss.textContent = '👹'; 
                     instructionDisplay.textContent = 'CLICK & DRAG BOSS!';
-                    console.log('BOSS CALMED DOWN (Should not happen unless healed past 50%)');
                  }
              }
         }
         
-        // Gây sát thương cho Chuột và kích hoạt Bất tử
         function damageCursor() {
             if (isInvulnerable || gameState !== 'playing') return;
 
             cursorHP--;
             updateCursorHPDisplay();
             
-            // Kích hoạt Invulnerability (I-frames)
             isInvulnerable = true;
             customCursor.classList.add('cursor-hit');
 
@@ -712,85 +1126,85 @@
                 customCursor.classList.remove('cursor-hit');
             }, INVULNERABILITY_TIME);
             
-            // Check Game Over
             if (cursorHP <= 0) {
                 triggerGameOver();
             }
         }
 
-        // Cập nhật hiển thị HP của Chuột
         function updateCursorHPDisplay() {
-             const hearts = '❤️';
-             cursorHpDisplay.innerHTML = `${hearts.repeat(cursorHP)} <span class="text-xl">${cursorHP}</span>`;
+             // FIX: CHỈ HIỂN THỊ MỘT TRÁI TIM VÀ SỐ HP
+             cursorHpDisplay.innerHTML = `❤️ <span class="text-base">${cursorHP}</span>`;
 
-             if (cursorHP === 1) {
-                 cursorHpDisplay.classList.remove('text-pink-400');
-                 cursorHpDisplay.classList.add('text-red-500', 'animate-pulse');
+             if (cursorHP <= 5) {
+                 cursorHpDisplay.classList.remove('text-pink-600');
+                 cursorHpDisplay.classList.add('text-red-500');
+                 if (cursorHP <= 2) {
+                     cursorHpDisplay.classList.add('animate-pulse');
+                 } else {
+                     cursorHpDisplay.classList.remove('animate-pulse');
+                 }
              } else {
                  cursorHpDisplay.classList.remove('text-red-500', 'animate-pulse');
-                 cursorHpDisplay.classList.add('text-pink-400');
+                 cursorHpDisplay.classList.add('text-pink-600');
              }
         }
 
         
-        // Cập nhật độ khó (tăng tốc độ đạn và tần suất bắn nhanh hơn)
         function updateDifficulty() {
-            // Level tăng mỗi 10 giây
             const nextLevelThreshold = currentLevel * 10; 
             
             if (score >= nextLevelThreshold) {
                 currentLevel++;
                 
-                // Tăng tốc độ đạn: Level 1 (0.2), Level 2 (0.25), Level 3 (0.3), ...
                 PROJECTILE_SPEED = 0.2 + (currentLevel - 1) * 0.05;
-                
-                // Giảm tần suất bắn: Level 1 (1500ms), Level 2 (1200ms), Level 3 (900ms), Tối thiểu 500ms
                 PROJECTILE_FIRING_RATE = Math.max(500, 1500 - (currentLevel - 1) * 300); 
 
-                // Reset interval với rate mới
                 clearInterval(projectileInterval);
                 projectileInterval = setInterval(fireProjectile, PROJECTILE_FIRING_RATE);
                 
-                // Cập nhật hướng dẫn tạm thời
                 if (!isEnraged) {
                      instructionDisplay.textContent = `LEVEL UP! Cấp độ: ${currentLevel}`;
                 }
 
                 setTimeout(() => {
-                    // Chỉ hiển thị lại hướng dẫn cũ nếu Boss chưa Enraged và không đang cooldown
-                    if(canDragBoss) {
+                    if(canDragBoss && throwEnergy >= ENERGY_COST_PER_THROW) {
                         if(!isEnraged) { 
                             instructionDisplay.textContent = 'CLICK & DRAG BOSS!';
                         } else {
                             instructionDisplay.textContent = 'BOSS PHẪN NỘ! CẨN THẬN ĐẠN ĐÔI & HỒI MÁU!';
                         }
-                    }
+                    } 
                 }, 2000);
-
-                console.log(`Độ khó tăng lên Level ${currentLevel}. Speed: ${PROJECTILE_SPEED.toFixed(2)}, Rate: ${PROJECTILE_FIRING_RATE}ms`);
             }
         }
 
 
-        // 9. Logic Game Loop
+        // 10. Logic Game Loop
         function gameLoop(timestamp) {
             const deltaTime = timestamp - lastTime;
             lastTime = timestamp;
 
             if (gameState === 'playing') {
                 score += deltaTime / 1000;
-                scoreDisplay.textContent = `Time Alive: ${score.toFixed(2)}s`;
+                scoreDisplay.textContent = `${score.toFixed(2)}s`;
                 
-                updateDifficulty(); 
+                updateDifficulty();
                 updateBoss(deltaTime);
                 updateProjectiles(deltaTime);
                 
-                // PHONG PATCH v2.0 & v3.0: LOGIC HỒI MÁU PHẪN NỘ
+                // LOGIC HỒI PHỤC NĂNG LƯỢNG NÉM
+                if (!isDragging) {
+                    const energyRegen = ENERGY_REGEN_RATE * (deltaTime / 1000); 
+                    throwEnergy += energyRegen;
+                    throwEnergy = Math.min(throwEnergy, MAX_ENERGY);
+                    updateEnergyBar();
+                }
+
+                // LOGIC HỒI MÁU PHẪN NỘ
                 if (isEnraged && bossHP > 0) {
-                    // Hồi máu dựa trên thời gian (HP = 0.15/giây)
                     const healAmount = ENRAGED_HEAL_RATE * (deltaTime / 1000);
                     bossHP += healAmount; 
-                    bossHP = Math.min(bossHP, BOSS_MAX_HP); // Không vượt quá HP tối đa
+                    bossHP = Math.min(bossHP, BOSS_MAX_HP); 
                     updateHPBar();
                 }
             }
@@ -798,88 +1212,123 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // 10. Kích hoạt Game Over (Thua vì chạm đạn)
+        // 11. Kích hoạt Game Over (BSOD)
         function triggerGameOver() {
             if (gameState !== 'playing') return;
             gameState = 'gameover';
             
-            // BẬT LẠI con trỏ hệ thống để user click được nút Play Again
-            documentBody.classList.remove('hide-cursor'); // Tắt ẩn
-            documentBody.classList.add('show-cursor'); // Bật hiện (cho rõ ràng)
+            // Dừng AI và đạn
+            clearInterval(projectileInterval); 
+            clearInterval(bossAIInterval);
             
-            // Ẩn con trỏ custom
+            // Ẩn cửa sổ game và taskbar
+            phongExeWindow.style.display = 'none';
+            document.querySelector('.xp-taskbar').style.display = 'none';
+            runningAppIndicator.style.display = 'none';
+
+            // Hiệu ứng vỡ
             const cursorRect = customCursor.getBoundingClientRect();
             const centerX = cursorRect.left + cursorRect.width / 2;
             const centerY = cursorRect.top + cursorRect.height / 2;
-            customCursor.style.display = 'none';
             
-            // Kích hoạt hiệu ứng vỡ
+            // Ẩn con trỏ custom
+            customCursor.style.display = 'none'; 
+            
             fakeCursorShatter.style.display = 'block';
             fakeCursorShatter.style.left = `${centerX}px`;
             fakeCursorShatter.style.top = `${centerY}px`;
-            fakeCursorShatter.classList.remove('shatter-effect'); 
-            void fakeCursorShatter.offsetWidth; 
-            fakeCursorShatter.classList.add('shatter-effect');
             
             for (let i = 0; i < 10; i++) {
                 createFragment(centerX, centerY);
             }
 
             setTimeout(() => {
-                gameOverMessage.querySelector('h2').textContent = 'GAME OVER!';
-                gameOverMessage.querySelector('p').textContent = 'Con Trỏ Chuột Đã Hy Sinh Oanh Liệt! 😭';
+                // QUAN TRỌNG: KÍCH HOẠT LẠI CON TRỎ HỆ THỐNG
+                documentBody.classList.remove('hide-cursor'); 
+                documentBody.classList.add('show-cursor');
+                
+                // --- ÁP DỤNG BSOD (Dùng ảnh) ---
+                gameOverMessage.classList.add('bsod-image-overlay'); // Class mới dùng ảnh nền
+                gameOverMessage.classList.remove('bg-gray-900/95'); // Loại bỏ nền đen
                 gameOverMessage.style.opacity = '1';
                 gameOverMessage.style.pointerEvents = 'auto';
-                finalScore.textContent = `${score.toFixed(2)}s`;
-            }, 500);
+                
+                // Nội dung BSOD (được bọc trong text-box để dễ đọc trên nền ảnh)
+                gameOverMessage.innerHTML = `
+                    <div class="bsod-text-box text-center">
+                        <h1 class="text-3xl font-extrabold mb-4 text-red-300">SYSTEM CRASH! (STAT.EXE FAILED)</h1>
+                        <p class="bsod-details text-white text-base">
+                            *** CURSOR_FAILURE_IN_NONPAGED_AREA (0x000000E3)<br>
+                            Con trỏ của bạn đã bị Boss hạ gục! Lỗi này do tệp: <span style="background-color:white; color:#0000a8; padding: 2px;">CUSTOM_CURSOR.DLL</span><br><br>
+                            Sống sót được: <span class="text-yellow-400">${score.toFixed(2)} giây</span>. Quá tốt! <br><br>
+                            Hệ thống đang cố gắng khôi phục... Vui lòng đợi.
+                        </p>
+                        <div class="text-lg mt-6 text-green-400 font-bold" id="bsod-countdown">
+                            (REBOOTING IN 5 SECONDS...)
+                        </div>
+                    </div>
+                `;
 
-            clearInterval(projectileInterval); 
+                // Tự động Reload sau 5 giây
+                setTimeout(() => {
+                    window.location.reload();
+                }, 5000); 
+                
+            }, 500);
         }
 
-        // 11. Kích hoạt Game Win (Thắng vì hạ Boss)
+        // 12. Kích hoạt Game Win (Normal Overlay)
         function triggerGameWin() {
             if (gameState !== 'playing') return;
             gameState = 'gamewin';
             
-            // BẬT LẠI con trỏ hệ thống để user click được nút Play Again
+            // QUAN TRỌNG: KÍCH HOẠT LẠI CON TRỎ HỆ THỐNG ĐỂ BẤM NÚT RESET
             documentBody.classList.remove('hide-cursor');
             documentBody.classList.add('show-cursor');
-
-            // Dừng bắn đạn, xóa Boss
+            
+            // Dừng AI, đạn, ẩn boss
             clearInterval(projectileInterval); 
+            clearInterval(bossAIInterval);
             boss.style.display = 'none';
             projectiles.forEach(p => p.element.remove());
             projectiles = [];
+            // Ẩn con trỏ custom khi game win
+            customCursor.style.display = 'none'; 
             
-            // Ẩn con trỏ custom
-            customCursor.style.display = 'none';
-            
-            // Hiển thị thông báo chiến thắng
             setTimeout(() => {
-                gameOverMessage.querySelector('h2').textContent = 'CHIẾN THẮNG!';
-                gameOverMessage.querySelector('h2').classList.remove('text-red-500');
-                gameOverMessage.querySelector('h2').classList.add('text-green-500');
-                gameOverMessage.querySelector('p').textContent = 'Bạn đã hạ gục Boss thành công! 🎉';
-                gameOverMessage.querySelector('button').classList.remove('bg-green-500');
-                gameOverMessage.querySelector('button').classList.add('bg-blue-500');
+                // Đảm bảo nó không phải BSOD
+                gameOverMessage.classList.remove('bsod-image-overlay');
+                gameOverMessage.classList.add('bg-gray-900/95');
+                
+                // Reset innerHTML structure cho Win Screen
+                 gameOverMessage.innerHTML = `
+                    <h2 class="text-3xl font-extrabold mb-2 animate-pulse text-green-400">
+                        CHIẾN THẮNG! 🏆
+                    </h2>
+                    <p class="text-sm text-gray-300 mb-4">
+                        Bạn đã hạ gục Boss thành công!
+                    </p>
+                    <button id="reset-button-win" onclick="resetGame()" class="xp-button-style bg-blue-500 hover:bg-blue-600">
+                        Chơi Lại (Reset)
+                    </button>
+                    <p class="text-sm text-gray-300 mt-2">
+                        Thời gian sống sót: <span class="text-pink-400">${score.toFixed(2)}s</span>
+                    </p>
+                `;
+
                 gameOverMessage.style.opacity = '1';
                 gameOverMessage.style.pointerEvents = 'auto';
-                finalScore.textContent = `${score.toFixed(2)}s`;
             }, 500);
         }
 
 
-        // 12. Tạo mảnh vỡ (Fragment)
+        // 13. Tạo mảnh vỡ (Fragment)
         function createFragment(absoluteX, absoluteY) {
             const fragment = document.createElement('div');
             fragment.className = 'fragment';
             
-            const shatterRect = shatterContainer.getBoundingClientRect();
-            const relativeX = absoluteX - shatterRect.left;
-            const relativeY = absoluteY - shatterRect.top;
-
-            fragment.style.left = `${relativeX}px`;
-            fragment.style.top = `${relativeY}px`;
+            fragment.style.left = `${absoluteX}px`;
+            fragment.style.top = `${absoluteY}px`;
 
             const angle = Math.random() * 2 * Math.PI;
             const speed = 50 + Math.random() * 100; 
@@ -894,8 +1343,8 @@
                     return;
                 }
 
-                const newX = parseFloat(fragment.style.left) + vx * (fragTime / 1000);
-                const newY = parseFloat(fragment.style.top) + vy * (fragTime / 1000) + 0.98 * (fragTime / 1000)**2; 
+                const newX = parseFloat(fragment.style.left) + vx * (16 / 1000);
+                const newY = parseFloat(fragment.style.top) + vy * (16 / 1000) + 0.98 * (16 / 1000); 
 
                 fragment.style.left = `${newX}px`;
                 fragment.style.top = `${newY}px`;
@@ -914,24 +1363,15 @@
             animateFragment(0);
         }
 
-        // 13. Reset game (Reload page)
+        // 14. Reset game
         function resetGame() {
             window.location.reload(); 
         }
 
         // --- GAME INITIALIZATION ---
-        requestAnimationFrame(gameLoop);
-        
-        boss.style.left = '50%';
-        boss.style.top = '50%';
-        bossTargetX = 0;
-        bossTargetY = 0;
-        
         updateHPBar();
         updateCursorHPDisplay(); 
-        
-        console.log("Game đã ở trạng thái READY. Con trỏ hệ thống đang hiển thị để click nút Play.");
-
+        updateEnergyBar(); 
     </script>
 
 </body>
