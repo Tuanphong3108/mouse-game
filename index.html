@@ -527,7 +527,7 @@
             </h1>
             <!-- FIX 2: Thêm Stat.exe vào mô tả -->
             <p class="text-xl font-semibold mb-8 text-yellow-300">
-                Stat.exe - Hãy Quăng Boss Ra Khỏi Desktop!
+                Hãy Quăng Boss Ra Khỏi Desktop!
             </p>
             <!-- FIX 3: Sửa text nút Bắt Đầu -->
             <button id="play-button" class="xp-button-style">
@@ -1618,16 +1618,16 @@
                 // Reset innerHTML structure cho Win Screen
                  gameOverMessage.innerHTML = `
                     <h2 class="text-3xl font-extrabold mb-2 animate-pulse text-green-400">
-                        CHIẾN THẮNG! 🏆
+                        ĐÃ TIÊU DIỆT PHẦN MỀM ĐỘC HẠI! 🏆
                     </h2>
                     <p class="text-sm text-gray-300 mb-4">
-                        Bạn đã hạ gục Boss thành công!
+                        Phần mềm "The Boss.exe" đã bị terminate bởi cursor của người dùng Player
                     </p>
                     <button id="reset-button-win" onclick="resetGame()" class="xp-button-style bg-blue-500 hover:bg-blue-600">
-                        Chơi Lại (Reset)
+                        Hỗ trợ tiêu diệt "The Boss.exe" trên máy tính khác
                     </button>
                     <p class="text-sm text-gray-300 mt-2">
-                        Thời gian sống sót: <span class="text-pink-400">${score.toFixed(2)}s</span>
+                        Thời gian đánh bại: <span class="text-pink-400">${score.toFixed(2)}s</span>
                     </p>
                 `;
 
